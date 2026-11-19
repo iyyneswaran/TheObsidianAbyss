@@ -179,7 +179,7 @@ All captures are from Chromium running the project and are stored in [artifacts/
 - Commit message `feat: implement milestone 2 wizard movement`
 - Resolve the report's commit hash with `git log --diff-filter=A -1 --format=%H -- docs/milestone-2.md`
 - Working tree clean after the local commit
-- Push status local only
+- Published to GitHub on `origin/main` after verification
 
 ## 11. Operational instructions
 

@@ -6,3 +6,4 @@
 - Run formatting checks, typecheck, lint, production build, and the full automated suite. Fix failures and rerun the affected checks and full suite before committing a completed milestone.
 - Report actual pass and fail counts, coverage when measured, and anything that remains unverified. Commit a completed milestone only after its mandatory checks pass.
 - Create `docs/milestone-N.md` for each completed milestone. Record what shipped, actual automated test results, screenshots or other evidence, unresolved issues, and Git details.
+- After the required checks pass and the milestone is committed, push it to the configured GitHub remote and verify the remote branch contains the commit.
