@@ -37,6 +37,15 @@ export function PartyRoster({ session }: { session: PartySnapshot }) {
                     ? "Connected"
                     : "Disconnected · Protected"}
                 </p>
+                {member.maxHp > 0 && (
+                  <p
+                    className={`mt-1 text-xs ${member.life === "DEAD" ? "text-rose-200" : "text-green-200"}`}
+                  >
+                    {member.life === "DEAD"
+                      ? "Dead"
+                      : `Alive · ${member.hp}/${member.maxHp} HP`}
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-sm text-slate-400">Empty slot</p>

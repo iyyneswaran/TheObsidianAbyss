@@ -4,6 +4,26 @@ import { readFileSync } from "node:fs";
 const cookieName = "obsidian_guest";
 const lifetimeSeconds = 12 * 60 * 60;
 
+export function allowedWebOrigins(webOrigin: string): string[] {
+  const configured = new URL(webOrigin).origin;
+  const url = new URL(configured);
+  if (
+    url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1")
+  ) {
+    const port = url.port ? `:${url.port}` : "";
+    return [`http://localhost${port}`, `http://127.0.0.1${port}`];
+  }
+  return [configured];
+}
+
+export function isAllowedWebOrigin(
+  origin: string | null | undefined,
+  webOrigin: string,
+): boolean {
+  return Boolean(origin && allowedWebOrigins(webOrigin).includes(origin));
+}
+
 export function readGuestSecret(
   env: NodeJS.ProcessEnv = process.env,
 ): string | undefined {

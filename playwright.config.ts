@@ -10,6 +10,8 @@ if (existsSync(envFile)) loadEnvFile(envFile);
 const webPort = process.env.WEB_PORT ?? localPorts.web;
 const gamePort = process.env.GAME_PORT ?? localPorts.game;
 const apiPort = process.env.API_PORT ?? localPorts.api;
+process.env.COMBAT_FIXTURE_PORT ??= String(Number(apiPort) + 1000);
+process.env.COMBAT_FIXTURE_KEY ??= randomBytes(32).toString("hex");
 const webUrl = `http://localhost:${webPort}`;
 const apiUrl = `http://localhost:${apiPort}`;
 const coopEnv = {
@@ -20,8 +22,8 @@ const channel = process.env.PLAYWRIGHT_CHANNEL;
 
 export default defineConfig({
   testDir: "./tests/browser",
-  // Keep cold Vite and software WebGL startup within the browser assertions' time budget.
-  workers: 2,
+  // Each co-op scenario already runs up to four independent WebGL contexts.
+  workers: 1,
   use: { baseURL: webUrl, ...(channel ? { channel } : {}) },
   webServer: [
     {
@@ -35,9 +37,14 @@ export default defineConfig({
     },
     {
       command:
-        "pnpm --filter @obsidian/game-server exec tsx --conditions=development src/index.ts",
+        "pnpm --filter @obsidian/game-server exec tsx --conditions=development tests/combatHarness.ts",
       port: Number(gamePort),
-      env: coopEnv,
+      env: {
+        ...coopEnv,
+        NODE_ENV: "test",
+        COMBAT_FIXTURE_PORT: process.env.COMBAT_FIXTURE_PORT,
+        COMBAT_FIXTURE_KEY: process.env.COMBAT_FIXTURE_KEY,
+      },
       reuseExistingServer: false,
     },
     {

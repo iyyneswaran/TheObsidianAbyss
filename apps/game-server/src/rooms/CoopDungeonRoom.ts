@@ -1,21 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { matchMaker, Room, ServerError, type Client } from "@colyseus/core";
 import {
+  CombatRun,
   playerTerrain,
+  speedFactor,
   type DungeonMap,
   type PlayerTransform,
 } from "@obsidian/game-core";
 import type { WizardClassId } from "@obsidian/game-assets";
 import {
+  castSchema,
   classSelectionSchema,
   CoopPlayer,
   CoopState,
   movementSchema,
+  interactSchema,
   needsIncompleteConfirmation,
   PARTY_SIZE,
   PATCH_HZ,
   startSchema,
 } from "@obsidian/shared/coop";
+import { publishCombat } from "../party/combat.js";
 import { PartyError, type PartyDirectory } from "../party/directory.js";
 import {
   acceptInput,
@@ -57,6 +62,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
   private options!: CoopRoomOptions;
   private pending = new Map<string, Seat>();
   private members = new Map<string, Member>();
+  private run?: CombatRun;
 
   static override async onAuth() {
     throw new ServerError(4215, "Use private team entry.");
@@ -73,6 +79,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     this.onMessage("move", (client, message: unknown) => {
       const member = this.owner(client);
       if (!member || this.state.phase !== "ACTIVE") return;
+      if (this.run?.players.get(member.playerId)?.life === "DEAD") return;
       const input = movementSchema.safeParse(message);
       if (input.success)
         acceptInput(member.input, input.data, performance.now());
@@ -88,6 +95,28 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     this.onMessage("start", (client, message: unknown) =>
       this.start(client, message),
     );
+    this.onMessage("cast", (client, message: unknown) => {
+      const member = this.owner(client);
+      if (!member || this.state.phase !== "ACTIVE" || !this.run) return;
+      const request = castSchema.safeParse(message);
+      const error = request.success
+        ? this.run.cast(member.playerId, request.data)
+        : "Invalid cast.";
+      if (error) client.send("cast_rejected", { message: error });
+    });
+    this.onMessage("interact", (client, message: unknown) => {
+      const member = this.owner(client);
+      if (
+        !member ||
+        this.state.phase !== "ACTIVE" ||
+        !interactSchema.safeParse(message).success
+      )
+        return;
+      if (!this.run?.interact(member.playerId))
+        client.send("cast_rejected", {
+          message: "Clear the dungeon and approach the shadow gate.",
+        });
+    });
     this.onMessage("*", (client) =>
       this.reject(client, "Unsupported team command."),
     );
@@ -144,7 +173,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     if (!entry.disconnected)
       throw new PartyError(409, "This seat is still connected.");
     const { token, expires, retryAt } = entry.disconnected;
-    if (Date.now() >= expires || this.state.phase === "ENDED")
+    if (Date.now() >= expires)
       throw new PartyError(410, "The reconnect window ended.");
     if (Date.now() < retryAt)
       throw new PartyError(
@@ -176,7 +205,6 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     const reservation = member?.disconnected;
     const now = Date.now();
     return (
-      this.state.phase !== "ENDED" &&
       member?.guestId === guestId &&
       reservation?.token === token &&
       reservation.expires > now &&
@@ -227,6 +255,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     player.acknowledged = member.input.lastSequence;
     player.moving = false;
     player.connection = "DISCONNECTED_PROTECTED";
+    this.run?.setProtected(member.playerId, true);
     this.allowReconnection(client, this.options.recoverySeconds);
   }
 
@@ -237,6 +266,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     member.client = client;
     delete member.disconnected;
     this.state.players.get(member.playerId)!.connection = "CONNECTED";
+    this.run?.setProtected(member.playerId, false);
     if (!this.state.leaderId && this.state.phase === "LOBBY")
       this.state.leaderId = member.playerId;
   }
@@ -246,6 +276,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     if (!member || member.client !== client) return;
     this.members.delete(client.sessionId);
     this.state.players.delete(member.playerId);
+    this.run?.forfeit(member.playerId);
     if (this.state.leaderId === member.playerId) {
       const next = [...this.members.values()]
         .filter((entry) => !entry.disconnected)
@@ -290,29 +321,52 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
       return this.reject(client, "Confirm the incomplete team warning first.");
     }
     this.state.phase = "STARTING";
+    this.run = new CombatRun(this.roomId, this.options.map);
     void this.lock().catch(() => this.disconnect());
     for (const member of this.members.values()) {
-      Object.assign(
-        this.state.players.get(member.playerId)!,
-        this.options.spawns[member.slot],
+      const player = this.state.players.get(member.playerId)!;
+      Object.assign(player, this.options.spawns[member.slot]);
+      this.run.addPlayer(
+        member.playerId,
+        player.name,
+        player.wizard,
+        player.slot,
+        player,
+        Boolean(member.disconnected),
       );
     }
+    publishCombat(this.state, this.run, () => {});
     this.clock.setTimeout(() => {
       if (this.state.phase === "STARTING") this.state.phase = "ACTIVE";
     }, 120);
   }
 
   private simulate() {
-    if (this.state.phase !== "ACTIVE") return;
+    const run = this.run;
+    if (this.state.phase !== "ACTIVE" || !run) return;
     const now = performance.now();
     this.state.tick++;
     for (const member of this.members.values()) {
       const player = this.state.players.get(member.playerId)!;
-      if (member.disconnected || player.life !== "ALIVE") continue;
-      const next = simulatePlayer(this.options.map, player, member.input, now);
+      const combatant = run.players.get(member.playerId)!;
+      if (member.disconnected || combatant.life !== "ALIVE" || run.ended)
+        continue;
+      const next = simulatePlayer(
+        this.options.map,
+        player,
+        member.input,
+        now,
+        speedFactor(combatant),
+      );
       Object.assign(player, next);
       player.hazardous = playerTerrain(this.options.map, next).hazardous;
       player.acknowledged = member.input.lastSequence;
+    }
+    run.step(stepMs);
+    publishCombat(this.state, run, (event) => this.broadcast("combat", event));
+    if (run.ended) {
+      this.state.phase = "ENDED";
+      this.clock.setTimeout(() => void this.disconnect(), 120_000);
     }
   }
 }

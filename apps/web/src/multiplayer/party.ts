@@ -9,6 +9,7 @@ import {
   type PlayerConnection,
 } from "@obsidian/shared/coop";
 import type { WizardClassId } from "@obsidian/game-assets";
+import type { AbilitySlot, CombatEvent, RunResult } from "@obsidian/game-core";
 
 type Connection =
   "idle" | "connecting" | "connected" | "recovering" | "disconnected";
@@ -18,6 +19,9 @@ type Member = {
   wizard: WizardClassId;
   slot: number;
   connection: PlayerConnection;
+  life: "ALIVE" | "DEAD";
+  hp: number;
+  maxHp: number;
 };
 export interface PartySnapshot {
   connection: Connection;
@@ -28,6 +32,18 @@ export interface PartySnapshot {
   phase: PartyPhase | "";
   members: Member[];
   error: string;
+  castError: string;
+  result: RunResult | null;
+  encounter: string;
+  cleared: number;
+  gateOpen: boolean;
+  boss: { hp: number; maxHp: number; phase: number; warnings: number } | null;
+  local: {
+    mp: number;
+    maxMp: number;
+    statuses: string;
+    cooldowns: Partial<Record<AbilitySlot, number>>;
+  } | null;
 }
 
 const blank: PartySnapshot = {
@@ -39,6 +55,13 @@ const blank: PartySnapshot = {
   phase: "",
   members: [],
   error: "",
+  castError: "",
+  result: null,
+  encounter: "",
+  cleared: 0,
+  gateOpen: false,
+  boss: null,
+  local: null,
 };
 const key = "obsidian.party.code";
 const endpoint =
@@ -120,6 +143,9 @@ class PartyConnection {
   private direction = "";
   private rosterKey = "";
   private patchTimes: number[] = [];
+  private castSequence = 0;
+  private eventQueue: CombatEvent[] = [];
+  spectatorId = "";
 
   readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -129,6 +155,10 @@ class PartyConnection {
 
   get world() {
     return this.current?.state;
+  }
+
+  get combatEvents(): readonly CombatEvent[] {
+    return this.eventQueue;
   }
 
   get updateRate() {
@@ -177,6 +207,9 @@ class PartyConnection {
       this.nextInputAt = 0;
       this.direction = "";
       this.sequence = 0;
+      this.castSequence = 0;
+      this.eventQueue = [];
+      this.spectatorId = "";
       const active = () =>
         this.current === room && this.generation === generation;
       room.reconnection.minUptime = 0;
@@ -214,6 +247,20 @@ class PartyConnection {
       room.onMessage("party_error", (message: { message: string }) => {
         if (active()) this.update({ error: message.message });
       });
+      room.onMessage("cast_rejected", ({ message }: { message: string }) => {
+        if (active()) this.update({ castError: message });
+      });
+      room.onMessage("combat", (event: CombatEvent) => {
+        if (!active()) return;
+        if (this.eventQueue.length >= 96) this.eventQueue.shift();
+        this.eventQueue.push(event);
+        if (
+          event.kind === "cast" &&
+          event.source === this.snapshot.playerId &&
+          this.snapshot.castError
+        )
+          this.update({ castError: "" });
+      });
       this.publishRoster(room.state);
     } catch (error) {
       if (this.generation !== generation) return;
@@ -247,7 +294,7 @@ class PartyConnection {
     )
       return;
     const local = this.world?.players.get(this.snapshot.playerId);
-    if (local?.connection !== "CONNECTED") return;
+    if (local?.connection !== "CONNECTED" || local.life !== "ALIVE") return;
     const direction = `${horizontal},${vertical}`;
     if (
       direction === this.direction &&
@@ -264,11 +311,35 @@ class PartyConnection {
     });
   }
 
+  cast(slot: AbilitySlot, x: number, y: number) {
+    const local = this.world?.players.get(this.snapshot.playerId);
+    if (
+      local?.life !== "ALIVE" ||
+      this.snapshot.phase !== "ACTIVE" ||
+      this.snapshot.connection !== "connected" ||
+      !this.current?.connection.isOpen
+    )
+      return;
+    this.castSequence = Math.max(this.castSequence, local.castAck) + 1;
+    this.current.send("cast", { slot, x, y, sequence: this.castSequence });
+  }
+
+  interact() {
+    if (
+      this.snapshot.phase === "ACTIVE" &&
+      this.snapshot.connection === "connected" &&
+      this.current?.connection.isOpen
+    )
+      this.current.send("interact", {});
+  }
+
   async leave(consented: boolean) {
     const room = this.current;
     this.generation++;
     this.current = undefined;
     this.rosterKey = "";
+    this.eventQueue = [];
+    this.spectatorId = "";
     if (consented) sessionStorage.removeItem(key);
     this.snapshot = blank;
     this.listeners.forEach((listener) => listener());
@@ -283,15 +354,49 @@ class PartyConnection {
   private publishRoster(state: CoopState) {
     if (!state?.players) return;
     const members: Member[] = [];
-    state.players.forEach(({ name, wizard, slot, connection }, id) =>
-      members.push({ id, name, wizard, slot, connection }),
+    state.players.forEach(
+      ({ name, wizard, slot, connection, hp, maxHp, life }, id) =>
+        members.push({ id, name, wizard, slot, connection, hp, maxHp, life }),
     );
     members.sort((a, b) => a.slot - b.slot);
-    const summary = { phase: state.phase, leaderId: state.leaderId, members };
-    const serialized = JSON.stringify(summary);
+    const local = state.players.get(this.snapshot.playerId);
+    const combat = state.combat;
+    const boss =
+      combat?.phase &&
+      [...combat.enemies.values()].find(({ kind }) => kind === "overlord");
+    const summary = {
+      phase: state.phase,
+      leaderId: state.leaderId,
+      members,
+      encounter: combat?.encounter ?? "",
+      cleared: combat?.cleared ?? 0,
+      gateOpen: combat?.gateOpen ?? false,
+      boss: boss
+        ? {
+            hp: boss.hp,
+            maxHp: boss.maxHp,
+            phase: combat.phase,
+            warnings: [...combat.telegraphs.values()].filter(
+              ({ hostile }) => hostile,
+            ).length,
+          }
+        : null,
+      local: local
+        ? {
+            mp: local.mp,
+            maxMp: local.maxMp,
+            statuses: local.statuses,
+            cooldowns: Object.fromEntries(local.cooldowns.entries()),
+          }
+        : null,
+    };
+    const serialized = JSON.stringify(summary) + (combat?.result ?? "");
     if (serialized === this.rosterKey) return;
     this.rosterKey = serialized;
-    this.update(summary);
+    this.update({
+      ...summary,
+      result: combat?.result ? (JSON.parse(combat.result) as RunResult) : null,
+    });
   }
 
   private update(fields: Partial<PartySnapshot>) {

@@ -6,6 +6,28 @@ The seven original provisional wizard sheets live in `apps/web/public/assets/cha
 
 The typed manifest is `packages/game-assets/src/wizards.ts`. Regenerate the sheets from the repository root with `pnpm exec tsx tools/characters/generate.mjs`. To replace the provisional art, retain the layout or update the manifest's frame layout, animation columns, and foot anchor together.
 
+## Monster sprites
+
+Twelve directional monster sheets live in `apps/web/public/assets/monsters/`. Each PNG is 96 × 192 pixels with 48 × 48 frames in two columns and four rows ordered down, up, left and right. The walk animation alternates columns.
+
+The existing generated sheets provided the initial style. The Shadow Overlord Enemy Codex guided the crown, amethyst staff, armor trim, and new army silhouettes. The game uses the authoritative appearance ID to choose a sheet. Each visual variant shares the rules of its underlying combat archetype.
+
+| Sheet                        | Appearance                                                            | Where it appears     |
+| ---------------------------- | --------------------------------------------------------------------- | -------------------- |
+| `overlord.png`               | Shadow Overlord with horned crown, amethyst staff, and tattered armor | Boss arena           |
+| `mage.png`                   | Dark Mage Servant with orb staff                                      | Sanctuary approach   |
+| `shadow-guard.png`           | Corrupted Shadow Guard with sword and shield                          | Summoner wave        |
+| `soul-drainer.png`           | Soul Drainer with ivory mask and lantern                              | Summoner wave        |
+| `lava.png`                   | Lava Imp with magma cracks and ember eyes                             | Molten Guard Chamber |
+| `flying-skull.png`           | Skull wreathed in purple flame                                        | Summoner wave        |
+| `ghost-wisp.png`             | Lavender Ghost/Wisp                                                   | Forsaken Entrance    |
+| `eye-beast.png`              | Tentacled Eye Beast                                                   | Dark Mage summon     |
+| `shadow-bat.png`             | Purple bat with a two-beat wing animation                             | Summoner wave        |
+| `servant.png`                | Corrupted Minion                                                      | Dark Mage summon     |
+| `illusion.png`, `shadow.png` | Two translucent spectral doubles                                      | Watcher illusions    |
+
+Regenerate the original art with `node tools/characters/monsters.mjs` from the repository root. The generator uses `tools/characters/shadowArmy.mjs` for the codex-derived designs and the existing pixel drawing helpers.
+
 ## Dungeon
 
 The dungeon uses original pixel art drawn by `tools/dungeon/tiles.mjs` and assembled with the map generator. The concept image guided layout and palette. The playable scene uses an embedded 32 × 32 atlas at `apps/web/public/assets/dungeon/obsidian-stone.png`. The Tiled map `obsidian-dungeon.tmj` references the atlas and records the lava, torch, and crystal frame sequences. The nearby `light.png` supplies a reusable radial falloff for all three light sources.
@@ -29,6 +51,8 @@ The Aseprite JSON has 103 frame rectangles with durations of 33 ms, a nominal ra
 The public FX directory carries the upstream MIT license and notice in `PIXELFX-LICENSE.txt` and `PIXELFX-NOTICE.md`. Keep both with redistributed exports.
 
 ## Re-export or add an effect
+
+The [combat registry](../packages/game-assets/src/combat.ts) records the online effects used by Milestone 4. Combat exports accept `--compact` to create half-size pixel atlases with nearest-neighbor sampling via FFmpeg. Frost Nova keeps its original export. Regenerate monster sheets with `node tools/characters/monsters.mjs`. See [Monster sprites](#monster-sprites) for the layout and palette details.
 
 From the game root, pass the PixelFX checkout and a single catalog ID to the wrapper.
 

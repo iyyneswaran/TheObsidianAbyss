@@ -5,7 +5,10 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { readDungeonMap, type TiledDungeonMap } from "@obsidian/game-core";
 import { TEST_ROOM } from "@obsidian/shared";
 import { COOP_ROOM } from "@obsidian/shared/coop";
-import { createGuestSessions } from "@obsidian/shared/guest";
+import {
+  createGuestSessions,
+  isAllowedWebOrigin,
+} from "@obsidian/shared/guest";
 import { PartyDirectory } from "./party/directory.js";
 import { partyRouter } from "./party/routes.js";
 import { partySpawns } from "./party/simulation.js";
@@ -19,9 +22,11 @@ export interface CoopConfig {
   dropLimit: number;
 }
 
-export function loadCanonicalMap() {
+export function loadCanonicalMap(combat = false) {
   const file = new URL(
-    "../../web/public/assets/dungeon/obsidian-dungeon.tmj",
+    combat
+      ? "../../web/public/assets/dungeon/obsidian-combat.tmj"
+      : "../../web/public/assets/dungeon/obsidian-dungeon.tmj",
     import.meta.url,
   );
   return readDungeonMap(
@@ -33,6 +38,7 @@ export function createGameServer(gracefullyShutdown = true, coop?: CoopConfig) {
   const directory = new PartyDirectory();
   const guests = coop ? createGuestSessions(coop.secret) : undefined;
   const transport = new WebSocketTransport({
+    maxPayload: 8192,
     verifyClient({ req }: { req: IncomingMessage }) {
       // Use the same URL shape and room-id parsing as WebSocketTransport 0.17.
       const url = new URL(`ws://server/${req.url}`);
@@ -44,7 +50,7 @@ export function createGameServer(gracefullyShutdown = true, coop?: CoopConfig) {
       const identity = guests?.verify(req.headers.cookie);
       return Boolean(
         coop &&
-        req.headers.origin === coop.webOrigin &&
+        isAllowedWebOrigin(req.headers.origin, coop.webOrigin) &&
         identity &&
         room.permitsSocket(
           url.searchParams.get("sessionId") ?? "",
@@ -57,7 +63,7 @@ export function createGameServer(gracefullyShutdown = true, coop?: CoopConfig) {
   const server = new Server({ transport, gracefullyShutdown, greet: false });
   server.define(TEST_ROOM, TestRoom);
   if (coop && guests) {
-    const map = loadCanonicalMap();
+    const map = loadCanonicalMap(true);
     server.router = partyRouter(directory, guests, coop.webOrigin);
     server.define(COOP_ROOM, CoopDungeonRoom, {
       directory,

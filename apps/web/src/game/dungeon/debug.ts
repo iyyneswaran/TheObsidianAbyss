@@ -11,6 +11,7 @@ import type { DungeonPlayer } from "../characters/player";
 import type { createOnlineActors } from "../characters/onlineActors";
 import type { createDungeonCamera } from "./camera";
 import type { DungeonDebugInfo } from "./preview";
+import type { OnlineDebugInfo } from "../characters/onlineActors";
 
 const options = {
   room: 0xa59dda,
@@ -105,7 +106,7 @@ export function setupDungeonDebug(
       if (!enabled) publish(null);
     });
 
-  return (elapsed: number) => {
+  return (elapsed: number, combat?: OnlineDebugInfo["combat"]) => {
     if (!enabled) return;
     const transform = player?.transform;
     const rendered = transform ?? online?.localPosition;
@@ -128,7 +129,9 @@ export function setupDungeonDebug(
       terrain: map.atWorld(point.x, point.y).terrain,
       room: roomAt(center),
       zones: zoneNames(point),
-      ...(online ? { online: online.sample() } : {}),
+      ...(online
+        ? { online: { ...online.sample(), ...(combat ? { combat } : {}) } }
+        : {}),
       ...(wizard && player && transform
         ? {
             player: {

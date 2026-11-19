@@ -1,5 +1,7 @@
 # Architecture
 
+The online room's combat simulation lives in `packages/game-core/src/combat`. The room owns cast validation, fixed-step combat, hazard and shrine processing, encounters, boss phase transitions, and run results. Colyseus replicates compact actor and spell state and publishes numbered combat events. Phaser handles input and presentation. See [Milestone 4](milestone-4.md) for loadout configuration, authority and recovery rules, and test results.
+
 ## Browser
 
 React owns routing, controls, and connection status. The playground lazily imports Phaser and owns one game instance for the lifetime of the route. BootScene loads the atlas. PlaygroundScene positions the effect at a fixed anchor and gives React a typed playback callback. Phaser owns the canvas and its animation loop. Route cleanup destroys the game and leaves any joined room.

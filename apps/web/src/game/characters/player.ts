@@ -90,6 +90,10 @@ export function createWizardActor(
   render(initial);
 
   return {
+    setVisible(visible: boolean) {
+      sprite.setVisible(visible);
+      shadow.setVisible(visible);
+    },
     render,
     destroy() {
       sprite.destroy();

@@ -114,6 +114,7 @@ export function simulatePlayer(
   previous: PlayerTransform,
   input: InputState,
   now: number,
+  speed = 1,
 ) {
   const sample =
     input.input && now - input.receivedAt < INPUT_LEASE_MS
@@ -123,6 +124,6 @@ export function simulatePlayer(
     map,
     previous,
     sample ? { x: sample.horizontal, y: sample.vertical } : idle,
-    stepMs,
+    stepMs * speed,
   );
 }

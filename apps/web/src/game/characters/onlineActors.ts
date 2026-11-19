@@ -12,6 +12,25 @@ export interface OnlineDebugInfo {
   localId: string;
   rate: number;
   tick: number;
+  combat?: {
+    renderedFx: number;
+    lastFx: string;
+    seenEffects: string[];
+    aim: WorldPoint;
+    projectiles: number;
+    targets: {
+      id: string;
+      kind: string;
+      appearance: string;
+      hp: number;
+      maxHp: number;
+      x: number;
+      y: number;
+      action: string;
+      statuses: string;
+      target: string;
+    }[];
+  };
   actors: {
     id: string;
     name: string;
@@ -40,7 +59,18 @@ export function createOnlineActors(
 
   return {
     get localPosition() {
-      return actors.get(party.getSnapshot().playerId)?.renderPoint;
+      const localId = party.getSnapshot().playerId;
+      const world = party.world;
+      if (world?.players.get(localId)?.life === "DEAD") {
+        const target = party.spectatorId;
+        const selected = world.players.get(target);
+        if (selected?.life === "ALIVE" && selected.connection === "CONNECTED")
+          return actors.get(target)?.renderPoint;
+        for (const [id, player] of world.players)
+          if (player.life === "ALIVE" && player.connection === "CONNECTED")
+            return actors.get(id)?.renderPoint;
+      }
+      return actors.get(localId)?.renderPoint;
     },
     step(x: number, y: number, delta: number) {
       const world = party.world;
@@ -64,7 +94,10 @@ export function createOnlineActors(
         }
         const point = actor.renderPoint;
         const locked = player.connection !== "CONNECTED";
-        const mix = locked ? 1 : 1 - Math.exp(-delta / 58);
+        const mix =
+          locked || Math.hypot(player.x - point.x, player.y - point.y) > 90
+            ? 1
+            : 1 - Math.exp(-delta / 58);
         point.x += (player.x - point.x) * mix;
         point.y += (player.y - point.y) * mix;
         actor.sprite.render(
@@ -76,6 +109,7 @@ export function createOnlineActors(
           },
           locked,
         );
+        actor.sprite.setVisible(player.life === "ALIVE");
       });
     },
     sample(): OnlineDebugInfo {

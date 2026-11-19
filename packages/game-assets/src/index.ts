@@ -41,3 +41,4 @@ export const effects = {
 export type EffectId = keyof typeof effects;
 
 export * from "./wizards.js";
+export * from "./combat.js";

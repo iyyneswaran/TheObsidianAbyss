@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
-import { effects, type PixelFxAtlas } from "@obsidian/game-assets";
-import { gameViewport } from "@obsidian/game-core";
+import {
+  combatEffects,
+  effects,
+  type PixelFxAtlas,
+} from "@obsidian/game-assets";
+import { enemyAppearances, gameViewport } from "@obsidian/game-core";
 import { localPorts, TEST_ROOM } from "@obsidian/shared";
 import { expect, it } from "vitest";
 
@@ -11,7 +15,7 @@ it("resolves shared contracts and the logical game viewport from the web workspa
 });
 
 it("provides a PNG and compatible Aseprite frame metadata for each registered effect", () => {
-  for (const effect of Object.values(effects)) {
+  for (const effect of [...Object.values(effects), ...combatEffects.values()]) {
     const asset = (path: string) =>
       new URL(`../public/${path}`, import.meta.url);
     const image = readFileSync(asset(effect.texturePath));
@@ -48,4 +52,17 @@ it("provides a PNG and compatible Aseprite frame metadata for each registered ef
       expect(frame.y + frame.h).toBeLessThanOrEqual(size.h);
     }
   }
+});
+
+it("ships a distinct two-frame, four-direction PNG for every enemy appearance", () => {
+  const images = enemyAppearances.map((appearance) => {
+    const image = readFileSync(
+      new URL(`../public/assets/monsters/${appearance}.png`, import.meta.url),
+    );
+    expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    expect(image.readUInt32BE(16)).toBe(2 * 48);
+    expect(image.readUInt32BE(20)).toBe(4 * 48);
+    return image.toString("base64");
+  });
+  expect(new Set(images).size).toBe(enemyAppearances.length);
 });

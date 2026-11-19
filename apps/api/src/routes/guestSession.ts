@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   createGuestSessions,
   createRequestLimit,
+  isAllowedWebOrigin,
 } from "@obsidian/shared/guest";
 
 export function registerGuestSession(
@@ -15,7 +16,7 @@ export function registerGuestSession(
 
   app.post("/session/guest", { bodyLimit: 1024 }, (request, reply) => {
     reply.header("Cache-Control", "no-store");
-    if (request.headers.origin !== webOrigin)
+    if (!isAllowedWebOrigin(request.headers.origin, webOrigin))
       return reply
         .code(403)
         .send({ error: "This origin cannot start a guest session." });

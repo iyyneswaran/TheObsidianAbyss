@@ -1,6 +1,9 @@
 import { defineTypes, MapSchema, Schema } from "@colyseus/schema";
 import { wizards, type WizardClassId } from "@obsidian/game-assets";
 import { z } from "zod";
+import { CombatState } from "./combat.js";
+
+export * from "./combat.js";
 
 export const COOP_ROOM = "coop_dungeon";
 export const PARTY_SIZE = 4;
@@ -59,6 +62,13 @@ export class CoopPlayer extends Schema {
   declare moving: boolean;
   declare hazardous: boolean;
   declare acknowledged: number;
+  declare hp: number;
+  declare maxHp: number;
+  declare mp: number;
+  declare maxMp: number;
+  declare statuses: string;
+  declare castAck: number;
+  declare cooldowns: MapSchema<number>;
 
   constructor() {
     super();
@@ -73,6 +83,9 @@ export class CoopPlayer extends Schema {
     this.moving = false;
     this.hazardous = false;
     this.acknowledged = 0;
+    this.hp = this.maxHp = this.mp = this.maxMp = this.castAck = 0;
+    this.statuses = "";
+    this.cooldowns = new MapSchema<number>();
   }
 }
 
@@ -88,6 +101,13 @@ defineTypes(CoopPlayer, {
   moving: "boolean",
   hazardous: "boolean",
   acknowledged: "uint32",
+  hp: "uint16",
+  maxHp: "uint16",
+  mp: "uint16",
+  maxMp: "uint16",
+  statuses: "string",
+  castAck: "uint32",
+  cooldowns: { map: "uint16" },
 });
 
 export class CoopState extends Schema {
@@ -96,6 +116,7 @@ export class CoopState extends Schema {
   declare phase: PartyPhase;
   declare tick: number;
   declare players: MapSchema<CoopPlayer>;
+  declare combat: CombatState;
 
   constructor() {
     super();
@@ -104,6 +125,7 @@ export class CoopState extends Schema {
     this.phase = "LOBBY";
     this.tick = 0;
     this.players = new MapSchema<CoopPlayer>();
+    this.combat = new CombatState();
   }
 }
 
@@ -113,6 +135,7 @@ defineTypes(CoopState, {
   phase: "string",
   tick: "uint32",
   players: { map: CoopPlayer },
+  combat: CombatState,
 });
 
 export function needsIncompleteConfirmation(connectedCount: number) {

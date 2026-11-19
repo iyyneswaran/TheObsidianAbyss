@@ -1,5 +1,7 @@
 # Windows development
 
+Online combat uses **left click** for the free basic, **Q/E/R/F** for the selected wizard's abilities, **G** for the Shadow Gate, and **F3** for development diagnostics. Private team setup remains at `/party`. The inspector and solo movement routes use the original map. See [Milestone 4](milestone-4.md) for combat tests and screenshots.
+
 Use PowerShell in the repository root. `pnpm dev` starts the web, game server, and API together. For independent development, run a single workspace command.
 
 | Service  | Command                                   | Default                 |

@@ -5,6 +5,7 @@ import { lightTexture, paintTiles } from "./tiles.mjs";
 const width = 80;
 const height = 64;
 const size = 32;
+const combat = process.argv.includes("--combat");
 const { ids, image, definition } = paintTiles();
 const names = [
   "Ground",
@@ -200,6 +201,50 @@ zone("mana_restoration_zone", "mana_restoration_zone", [38, 45, 7, 4], {
 });
 zone("shrine_safe_area", "safe_area", [37, 45, 9, 5], { safe: true });
 
+if (combat) {
+  for (const [id, title, region, spawn, enemy] of [
+    ["entrance", "Forsaken Entrance", [10, 8, 19, 19], [15, 14], "shadow"],
+    ["guard", "Molten Guard Chamber", [47, 8, 22, 19], [56, 21], "lava"],
+    ["approach", "Sanctuary Approach", [34, 39, 6, 6], [34, 42], "mage"],
+  ]) {
+    zone(id, "combat_region", region, { title });
+    zone(id + "_spawn", "combat_spawn", [...spawn, 1, 1], {
+      encounter: id,
+      enemy,
+    });
+  }
+  zone("shadow_gate", "boss_gate", [47, 46, 1, 1]);
+  zone("eclipse_arena", "boss_arena", [56, 35, 21, 21]);
+  zone("overlord_dais", "boss_spawn", [67, 43, 1, 1]);
+  area([57, 36, 19, 19], (x, y) => {
+    const distance = Math.hypot(x - 66, y - 45);
+    if (distance > 9.15) return;
+    if (distance > 7.7 && Math.abs(x - 66) > 4 && Math.abs(y - 45) > 4) {
+      set("Lava", x, y, ids.lava[(x % 2) + 2 * (y % 2)]);
+      return;
+    }
+    const ground = distance < 4.4 ? ids.paving : ids.shadow;
+    set("Ground", x, y, pick(ground, x, y, 54));
+  });
+  for (const [i, x, y] of [
+    [0, 64, 51],
+    [1, 65, 51],
+    [2, 66, 51],
+    [3, 67, 51],
+  ])
+    zone("arena_entry_" + i, "arena_entry", [x, y, 1, 1]);
+  for (const [i, x, y] of [
+    [0, 65, 40],
+    [1, 71, 44],
+    [2, 68, 49],
+    [3, 61, 46],
+    [4, 64, 45],
+    [5, 69, 41],
+  ])
+    zone("shadow_anchor_" + i, "boss_anchor", [x, y, 1, 1]);
+  zone("eclipse_mana_circle", "mana_restoration_zone", [66, 52, 2, 1]);
+}
+
 const faces = [
   [0, -1],
   [1, 0],
@@ -349,6 +394,28 @@ area([40, 46, 2, 2], (x, y) =>
   set("GroundDetails", x, y, ids.runes[(y - 46) * 2 + x - 40]),
 );
 
+if (combat) {
+  for (const [x, y] of [
+    [63, 42],
+    [69, 46],
+    [62, 49],
+    [71, 47],
+  ])
+    set("Obstacles", x, y, ids.broken);
+  for (const [x, y] of [
+    [64, 38],
+    [69, 39],
+    [59, 46],
+    [73, 45],
+    [70, 51],
+    [63, 52],
+  ])
+    set("Decorations", x, y, ids.torch);
+  set("GroundDetails", 47, 46, ids.runes[2]);
+  set("GroundDetails", 66, 52, ids.runes[2]);
+  set("GroundDetails", 67, 52, ids.runes[3]);
+}
+
 const tileLayers = names.map((name, i) => ({
   id: i + 1,
   name,
@@ -409,6 +476,9 @@ const json = JSON.stringify(
   );
   return "[\n        " + rows.join(",\n        ") + "\n      ]";
 });
-writeFileSync(new URL("obsidian-dungeon.tmj", folder), json + "\n");
+writeFileSync(
+  new URL(combat ? "obsidian-combat.tmj" : "obsidian-dungeon.tmj", folder),
+  json + "\n",
+);
 writeFileSync(new URL(definition.image, folder), image);
 writeFileSync(new URL("light.png", folder), lightTexture());

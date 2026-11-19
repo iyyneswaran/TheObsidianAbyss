@@ -6,7 +6,7 @@
 | 1. Dungeon Rendering           | Tilemaps, scene layers, camera, and environmental visuals                    | Complete |
 | 2. Wizard Controls             | Character selection, directional movement, collision, and camera follow      | Complete |
 | 3. Cooperative Sessions        | Private teams, authoritative movement, guest identity, and reconnect         | Complete |
-| 4. Combat and Encounters       | Class abilities, enemies, boss, and permanent death within a run             | Planned  |
+| 4. Combat and Encounters       | Class abilities, enemies, boss, and permanent death within a run             | Complete |
 | 5. Progression and Quest Board | Persistence, currencies, and daily and weekly quests                         | Planned  |
 
-[Milestone 3](milestone-3.md) is complete. Milestone 4 is next. The remaining sequence is a provisional roadmap based on the game brief.
+[Milestone 4](milestone-4.md) is complete. Milestone 5 is next. The remaining sequence is a provisional roadmap based on the game brief.

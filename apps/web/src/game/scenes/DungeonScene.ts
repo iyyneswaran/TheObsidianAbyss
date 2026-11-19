@@ -5,8 +5,12 @@ import {
   type OnlineConnection,
 } from "../characters/onlineActors";
 import { createPlayer, preloadWizard } from "../characters/player";
+import {
+  createCombatPresentation,
+  preloadCombat,
+} from "../combat/presentation";
 import { sortDungeonOccluders } from "../dungeon/actorDepth";
-import { dungeonPreviewMap } from "../dungeon/assets";
+import { dungeonCombatMap, dungeonPreviewMap } from "../dungeon/assets";
 import { createDungeonCamera } from "../dungeon/camera";
 import { setupDungeonDebug } from "../dungeon/debug";
 import { createEnvironment } from "../dungeon/environment";
@@ -31,13 +35,14 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   preload() {
-    preloadDungeon(this, dungeonPreviewMap);
+    preloadDungeon(this, this.online ? dungeonCombatMap : dungeonPreviewMap);
     if (this.wizard) preloadWizard(this, this.wizard);
     if (this.online) {
       const classes = new Set(
         this.online.getSnapshot().members.map(({ wizard }) => wizard),
       );
       for (const id of classes) preloadWizard(this, wizards[id]);
+      preloadCombat(this, classes);
     }
   }
 
@@ -50,10 +55,8 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private startDungeon() {
-    const { data, tilemap, layers, tilesets } = loadDungeon(
-      this,
-      dungeonPreviewMap,
-    );
+    const asset = this.online ? dungeonCombatMap : dungeonPreviewMap;
+    const { data, tilemap, layers, tilesets } = loadDungeon(this, asset);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => tilemap.destroy());
 
     const rooms = data.zones.flatMap(({ id, kind, properties }) => {
@@ -126,7 +129,7 @@ export class DungeonScene extends Phaser.Scene {
       data,
       layers,
       tilesets,
-      dungeonLightKey(dungeonPreviewMap),
+      dungeonLightKey(asset),
     );
     const debug = import.meta.env.DEV
       ? setupDungeonDebug(
@@ -155,6 +158,10 @@ export class DungeonScene extends Phaser.Scene {
       lastZoom = zoom;
     };
     positionCamera();
+    const combat =
+      this.online && depthAt
+        ? createCombatPresentation(this, data, this.online, depthAt)
+        : undefined;
 
     let elapsed = 0;
     this.step = (delta) => {
@@ -175,9 +182,33 @@ export class DungeonScene extends Phaser.Scene {
         view.pan(x, y, step);
       }
       positionCamera();
+      combat?.step(step);
       elapsed += delta;
       animate(elapsed);
-      debug?.(elapsed);
+      const combatState = debug && this.online?.world?.combat;
+      debug?.(
+        elapsed,
+        combat && combatState
+          ? {
+              ...combat.sample(),
+              projectiles: combatState.projectiles.size,
+              targets: [...combatState.enemies.entries()].map(
+                ([id, enemy]) => ({
+                  id,
+                  kind: enemy.kind,
+                  appearance: enemy.appearance,
+                  x: enemy.x,
+                  y: enemy.y,
+                  hp: enemy.hp,
+                  maxHp: enemy.maxHp,
+                  action: enemy.action,
+                  statuses: enemy.statuses,
+                  target: enemy.target,
+                }),
+              ),
+            }
+          : undefined,
+      );
     };
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {

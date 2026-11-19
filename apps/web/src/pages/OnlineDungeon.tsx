@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { PartyConfirm } from "../components/PartyConfirm";
+import { CombatHud, RunSummary } from "../components/CombatHud";
 import { PartyRoster } from "../components/PartyRoster";
 import type { DungeonDebugInfo } from "../game/dungeon/preview";
 import { usePhaserStage } from "../hooks/usePhaserStage";
@@ -65,7 +66,8 @@ function OnlineStage() {
           aria-label="Online dungeon map"
         />
         <p className="border-t border-gold/25 bg-panel px-4 py-3 text-sm text-slate-300">
-          WASD or arrows to move · Scroll over the map to zoom
+          WASD or arrows to move · Left click to attack · Q / E / R / F to cast
+          · G to interact · Scroll to zoom
           {import.meta.env.DEV && " · F3 for debug"}
         </p>
       </div>
@@ -93,7 +95,13 @@ function OnlineDebug({ info }: { info: DungeonDebugInfo }) {
         · {connected} connected · {online.actors.length - connected}{" "}
         disconnected
       </p>
-      <p className="mb-3">
+      <p
+        className="mb-3"
+        data-testid="combat-camera"
+        data-x={info.cameraX}
+        data-y={info.cameraY}
+        data-zoom={info.zoom}
+      >
         Tick <span data-testid="debug-tick">{online.tick}</span> ·{" "}
         <span data-testid="debug-rate">{online.rate}</span> patches/s · Camera{" "}
         {info.cameraX}, {info.cameraY} · {info.zoom}×
@@ -138,6 +146,44 @@ function OnlineDebug({ info }: { info: DungeonDebugInfo }) {
           ))}
         </tbody>
       </table>
+      {online.combat && (
+        <div className="mt-3">
+          <p
+            data-testid="combat-aim"
+            data-x={online.combat.aim.x}
+            data-y={online.combat.aim.y}
+          >
+            Aim {online.combat.aim.x.toFixed(0)},{" "}
+            {online.combat.aim.y.toFixed(0)}
+          </p>
+          <p
+            data-testid="combat-fx"
+            data-count={online.combat.renderedFx}
+            data-rendered={online.combat.seenEffects.join(" ")}
+          >
+            {online.combat.lastFx}
+          </p>
+          <p>Projectiles {online.combat.projectiles}</p>
+          {online.combat.targets.map((enemy) => (
+            <p
+              key={enemy.id}
+              data-testid="combat-enemy"
+              data-id={enemy.id}
+              data-kind={enemy.kind}
+              data-appearance={enemy.appearance}
+              data-x={enemy.x}
+              data-y={enemy.y}
+              data-hp={enemy.hp}
+              data-max={enemy.maxHp}
+              data-status={enemy.statuses}
+              data-target={enemy.target}
+            >
+              {enemy.kind} · {enemy.hp}/{enemy.maxHp} HP · {enemy.action}{" "}
+              {enemy.statuses} · target {enemy.target || "—"}
+            </p>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -146,6 +192,7 @@ export function OnlineDungeon() {
   const session = useParty();
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState(false);
+  const [watch, setWatch] = useState("");
   const code = session.code || party.rememberedCode;
   useEffect(() => party.restore(), []);
 
@@ -200,7 +247,26 @@ export function OnlineDungeon() {
         </div>
       )}
       {session.members.length > 0 && <PartyRoster session={session} />}
-      {session.phase === "ACTIVE" && <OnlineStage />}
+      {session.result && (
+        <RunSummary
+          result={session.result}
+          onReturn={() => {
+            void party.leave(true);
+            navigate("/party", { replace: true });
+          }}
+        />
+      )}
+      {session.phase === "ACTIVE" && (
+        <CombatHud
+          session={session}
+          watch={watch}
+          onWatch={(id) => {
+            party.spectatorId = id;
+            setWatch(id);
+          }}
+        />
+      )}
+      {(session.phase === "ACTIVE" || session.result) && <OnlineStage />}
       {confirm && (
         <PartyConfirm
           title="Leave the dungeon?"

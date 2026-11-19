@@ -2,6 +2,7 @@ import { createEndpoint, createRouter, matchMaker } from "@colyseus/core";
 import { COOP_ROOM, partyRequestSchema } from "@obsidian/shared/coop";
 import {
   createRequestLimit,
+  isAllowedWebOrigin,
   type createGuestSessions,
 } from "@obsidian/shared/guest";
 import type { CoopDungeonRoom } from "../rooms/CoopDungeonRoom.js";
@@ -59,7 +60,7 @@ export function partyRouter(
             headers: { "Cache-Control": "no-store" },
           });
         const headers = ctx.request.headers;
-        if (headers.get("origin") !== webOrigin)
+        if (!isAllowedWebOrigin(headers.get("origin"), webOrigin))
           return json({ error: "This origin cannot enter teams." }, 403);
         const guest = guests.verify(headers.get("cookie"));
         if (!guest)

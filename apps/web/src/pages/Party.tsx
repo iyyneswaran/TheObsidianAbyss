@@ -25,7 +25,7 @@ export function Party() {
   const own = session.members.find((member) => member.id === session.playerId);
   useEffect(() => party.restore(), []);
 
-  if (session.phase === "ACTIVE")
+  if (session.phase === "ACTIVE" || session.result)
     return <Navigate to="/dungeon/online" replace />;
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">

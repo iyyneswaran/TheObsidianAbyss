@@ -6,7 +6,7 @@ const configSchema = z.object({
   WEB_ORIGIN: z
     .url({ protocol: /^https?$/, normalize: true })
     .transform((url) => new URL(url).origin)
-    .default(`http://localhost:${localPorts.web}`),
+    .default(`http://127.0.0.1:${localPorts.web}`),
 });
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env) {

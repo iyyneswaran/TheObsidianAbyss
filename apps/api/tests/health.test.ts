@@ -15,6 +15,15 @@ it("serves the health contract and only authorizes the configured browser origin
   });
   expect(response.headers["access-control-allow-origin"]).toBe(origin);
 
+  const loopbackAlias = await app.inject({
+    url: "/health",
+    headers: { origin: "http://127.0.0.1:5173" },
+  });
+  expect(loopbackAlias.statusCode).toBe(200);
+  expect(loopbackAlias.headers["access-control-allow-origin"]).toBe(
+    "http://127.0.0.1:5173",
+  );
+
   const other = await app.inject({
     url: "/health",
     headers: { origin: "http://localhost:8000" },

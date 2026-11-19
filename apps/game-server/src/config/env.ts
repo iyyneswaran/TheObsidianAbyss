@@ -6,7 +6,7 @@ const configSchema = z.object({
   WEB_ORIGIN: z
     .url({ protocol: /^https?$/ })
     .transform((url) => new URL(url).origin)
-    .default(`http://localhost:${localPorts.web}`),
+    .default(`http://127.0.0.1:${localPorts.web}`),
   PARTY_RECOVERY_SECONDS: z.coerce.number().int().min(5).max(900).default(120),
   PARTY_DROP_LIMIT: z.coerce.number().int().min(1).max(30).default(6),
 });
