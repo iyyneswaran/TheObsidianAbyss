@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-abyss: #101021;
+  --color-panel: #19182d;
+  --color-gold: #aa9262;
+  --color-iris: #c2a9f4;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-abyss text-slate-100 antialiased;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-4 outline-iris;
+  }
+
+  canvas {
+    image-rendering: pixelated;
+    display: block;
+  }
+}
+
+@layer components {
+  .action {
+    @apply inline-flex rounded-md border border-gold/60 bg-panel px-4 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-iris/20 disabled:opacity-50;
+  }
+}

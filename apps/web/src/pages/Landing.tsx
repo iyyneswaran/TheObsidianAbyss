@@ -1,0 +1,14 @@
+import { Link } from "react-router-dom";
+
+export function Landing() {
+  return (
+    <main className="mx-auto max-w-3xl px-6 pt-[20vh]">
+      <h1 className="mb-6 font-serif text-5xl font-semibold text-iris">
+        The Obsidian Abyss
+      </h1>
+      <Link className="action" to="/playground">
+        Open playground
+      </Link>
+    </main>
+  );
+}
