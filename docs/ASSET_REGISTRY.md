@@ -1,5 +1,11 @@
 # Asset registry
 
+## Dungeon
+
+The dungeon uses original pixel art drawn by `tools/dungeon/tiles.mjs` and assembled with the map generator. The concept image guided layout and palette. The playable scene uses an embedded 32 × 32 atlas at `apps/web/public/assets/dungeon/obsidian-stone.png`. The Tiled map `obsidian-dungeon.tmj` references the atlas and records the lava, torch, and crystal frame sequences. The nearby `light.png` supplies a reusable radial falloff for all three light sources.
+
+The atlas includes stone floors, mortar and cracks, wall edges, rock-lined lava, masonry bridge sections, columns, rubble, banners, flame fixtures, shrine stonework, and rune tiles. The dungeon art was authored for this project and has no upstream asset attribution. The dungeon torches use four original tile frames.
+
 ## Frost Nova
 
 PixelFX 0.3.1 was found in the nested local checkout at `C:\Users\pdee5\OneDrive\Desktop\pixelfx\pixelfx`. The upstream asset ID is `ice/frost-nova`.

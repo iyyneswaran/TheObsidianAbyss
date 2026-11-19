@@ -16,7 +16,7 @@ pnpm dev
 
 The example environment is optional with the default ports. If `.env` already exists, keep your local settings.
 
-Open [the landing page](http://localhost:5173/), then select **Open playground**. Select **Play Frost Nova** to preview the effect and **Connect** to join `test_room`. The API health endpoint is at [http://localhost:3001/health](http://localhost:3001/health).
+Open [the landing page](http://localhost:5173/), then select **Explore dungeon** to inspect the three connected rooms. Select **Open playground** for Frost Nova and the Colyseus test room. The API health endpoint is at [http://localhost:3001/health](http://localhost:3001/health).
 
 ## Checks
 

@@ -1,43 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import type Phaser from "phaser";
+import { useCallback, useRef, useState } from "react";
+import { usePhaserStage } from "../hooks/usePhaserStage";
 
 export function PhaserPlayground() {
-  const parent = useRef<HTMLDivElement>(null);
   const play = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "unavailable">(
     "loading",
   );
-
-  useEffect(() => {
-    let active = true;
-    let frame = 0;
-    let game: Phaser.Game | undefined;
-
-    void import("../game/config/createGame")
-      .then(({ createGame }) => {
-        if (!active) return;
-
-        // Defer startup until the mount survives Strict Mode's effect replay.
-        frame = requestAnimationFrame(() => {
-          if (!parent.current) return;
-          game = createGame(parent.current, (trigger) => {
-            if (!active) return;
-            play.current = trigger;
-            setStatus(trigger ? "ready" : "unavailable");
-          });
-        });
-      })
-      .catch(() => {
-        if (active) setStatus("unavailable");
+  const load = useCallback(async (isActive: () => boolean) => {
+    const { createGame } = await import("../game/config/createGame");
+    return (parent: HTMLElement) =>
+      createGame(parent, (trigger) => {
+        if (!isActive()) return;
+        play.current = trigger;
+        setStatus(trigger ? "ready" : "unavailable");
       });
-
-    return () => {
-      active = false;
-      cancelAnimationFrame(frame);
-      play.current = null;
-      game?.destroy(true);
-    };
   }, []);
+  const fail = useCallback(() => setStatus("unavailable"), []);
+  const dispose = useCallback(() => {
+    play.current = null;
+  }, []);
+  const parent = usePhaserStage(load, fail, dispose);
 
   return (
     <section aria-label="Effects preview" className="space-y-4">

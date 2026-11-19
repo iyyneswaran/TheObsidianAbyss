@@ -6,9 +6,14 @@ export function Landing() {
       <h1 className="mb-6 font-serif text-5xl font-semibold text-iris">
         The Obsidian Abyss
       </h1>
-      <Link className="action" to="/playground">
-        Open playground
-      </Link>
+      <nav aria-label="Game previews" className="flex flex-wrap gap-3">
+        <Link className="action" to="/dungeon">
+          Explore dungeon
+        </Link>
+        <Link className="action" to="/playground">
+          Open playground
+        </Link>
+      </nav>
     </main>
   );
 }
