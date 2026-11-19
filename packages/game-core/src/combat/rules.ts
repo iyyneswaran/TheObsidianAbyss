@@ -9,12 +9,14 @@ import {
 } from "../movement.js";
 import {
   combatBalance,
+  type Ability,
   type AbilitySlot,
   type CombatClass,
   type EnemyKind,
   type EnemyAppearance,
   type Status,
 } from "./balance.js";
+import type { Equipment } from "./alternates.js";
 
 export type Life = "ALIVE" | "DEAD";
 export type Outcome = "VICTORY" | "DEFEAT";
@@ -49,6 +51,10 @@ export interface CombatPlayer extends Fighter {
   rateCount: number;
   damage: number;
   healing: number;
+  mitigation: number;
+  kills: number;
+  equipment: Equipment;
+  abilities: Readonly<Record<AbilitySlot, Ability>>;
 }
 export interface Enemy extends Fighter {
   kind: EnemyKind;
@@ -63,6 +69,7 @@ export interface Enemy extends Fighter {
   patrol: number;
   lifetime: number;
   summons: number;
+  contributions: Map<string, number>;
 }
 export interface CastInput {
   slot: AbilitySlot;
@@ -102,6 +109,10 @@ export interface RunParticipant {
   status: "Survived" | "Dead" | "Forfeited";
   damage: number;
   healing: number;
+  mitigation: number;
+  kills: number;
+  slot: number;
+  protectedAtEnd: boolean;
 }
 export interface RunResult {
   id: string;
@@ -110,6 +121,27 @@ export interface RunResult {
   monsters: number;
   bossDefeated: boolean;
   durationMs: number;
+  qualifies: boolean;
+}
+
+export type ProgressMetric =
+  | "damage"
+  | "heal"
+  | "mitigate"
+  | "kill"
+  | "mana"
+  | "burn"
+  | "freeze"
+  | "chain"
+  | "slow"
+  | "push"
+  | "run"
+  | "victory";
+export interface CombatProgress {
+  playerId: string;
+  wizard: CombatClass;
+  metric: ProgressMetric;
+  amount: number;
 }
 
 export const distance = (a: WorldPoint, b: WorldPoint) =>

@@ -1,5 +1,10 @@
 import type { DungeonMap } from "../dungeon.js";
 import {
+  defaultEquipment,
+  equippedAbilities,
+  type Equipment,
+} from "./alternates.js";
+import {
   playerTerrain,
   type PlayerTransform,
   type WorldPoint,
@@ -29,9 +34,11 @@ import {
   type CastInput,
   type CombatEvent,
   type CombatPlayer,
+  type CombatProgress,
   type Enemy,
   type Fighter,
   type Outcome,
+  type ProgressMetric,
   type RunResult,
 } from "./rules.js";
 
@@ -81,10 +88,12 @@ export class CombatRun {
   result?: RunResult;
   private entitySequence = 0;
   private eventSequence = 0;
+  private hadCombat = false;
 
   constructor(
     readonly id: string,
     readonly map: DungeonMap,
+    private readonly onProgress?: (event: CombatProgress) => void,
   ) {
     this.encounters = new Encounters(this);
   }
@@ -100,6 +109,7 @@ export class CombatRun {
     slot: number,
     body: PlayerTransform,
     protectedSeat = false,
+    equipment: Equipment = defaultEquipment,
   ) {
     const { hp, mp } = loadouts[wizard];
     this.players.set(id, {
@@ -125,6 +135,10 @@ export class CombatRun {
       rateCount: 0,
       damage: 0,
       healing: 0,
+      mitigation: 0,
+      kills: 0,
+      equipment: { ...equipment },
+      abilities: equippedAbilities(wizard, equipment),
     });
   }
 
@@ -183,6 +197,7 @@ export class CombatRun {
       repathIn: 0,
       patrol: 0,
       summons: 0,
+      contributions: new Map(),
       lifetime,
     };
     this.monsters.set(id, enemy);
@@ -205,7 +220,7 @@ export class CombatRun {
     if (++player.rateCount > combatBalance.limit.castsPerSecond)
       return "Casting too quickly.";
     if (immobile(player)) return "Your wizard is immobilized.";
-    const ability = loadouts[player.wizard].abilities[input.slot];
+    const ability = player.abilities[input.slot];
     if (!ability) return "Unknown ability.";
     if (player.cooldowns[input.slot] > 0) return "Ability is cooling down.";
     if (player.mp < ability.mana) return "Insufficient mana.";
@@ -457,6 +472,7 @@ export class CombatRun {
         break;
       case "chain": {
         const hit = new Set<string>();
+        let eligibleHits = 0;
         let next = target.actor as Enemy | undefined;
         for (
           let jump = 0;
@@ -465,6 +481,7 @@ export class CombatRun {
         ) {
           const point = next.body;
           hit.add(next.id);
+          if (this.progressEnemy(next.id)) eligibleHits++;
           this.applyHit(next, effect, source, origin);
           this.emit("impact", point, {
             target: next.id,
@@ -481,9 +498,11 @@ export class CombatRun {
               clearSight(this.map, point, mob.body),
           );
         }
+        if (eligibleHits > 1) this.credit(player, "chain", eligibleHits);
         break;
       }
       case "radius":
+      case "line":
       case "cone": {
         const radial = ability.shape === "radius";
         const point = radial ? target.point : origin;
@@ -495,6 +514,15 @@ export class CombatRun {
           )
             return false;
           const ray = directionTo(point, actor.body);
+          if (ability.shape === "line") {
+            const dx = actor.body.x - point.x;
+            const dy = actor.body.y - point.y;
+            return (
+              dx * direction.x + dy * direction.y >= 0 &&
+              Math.abs(dx * direction.y - dy * direction.x) <=
+                (ability.width ?? 0) / 2
+            );
+          }
           return radial || ray.x * direction.x + ray.y * direction.y >= 0.72;
         };
         if (effect.heal)
@@ -626,14 +654,28 @@ export class CombatRun {
         this.cancel(target.id);
       }
     }
-    if (effect.push && (target as Enemy).kind !== "overlord")
+    if (effect.push && (target as Enemy).kind !== "overlord") {
+      const start = { ...target.body };
       stepActor(
         this.map,
         target,
-        directionTo(point, target.body),
-        effect.push,
+        effect.push > 0
+          ? directionTo(point, target.body)
+          : directionTo(target.body, point),
+        Math.min(
+          Math.abs(effect.push),
+          effect.push < 0 ? distance(point, target.body) : Infinity,
+        ),
         true,
       );
+      const caster = this.players.get(source);
+      if (
+        caster &&
+        this.progressEnemy(target.id) &&
+        distance(start, target.body) >= 1
+      )
+        this.credit(caster, "push", 1);
+    }
   }
 
   damage(target: Fighter, amount: number, source: string) {
@@ -646,6 +688,9 @@ export class CombatRun {
       return 0;
     const player = this.players.get(target.id);
     if (player && (!eligible(player) || this.players.has(source))) return 0;
+    const incoming = Math.ceil(amount);
+    const realAttack = Boolean(player && this.monsters.has(source));
+    if (realAttack) this.hadCombat = true;
     const blocking = target.statuses.get("Blocking");
     const shield = target.statuses.get("Shielded");
     if (blocking) amount *= 1 - blocking.power;
@@ -656,11 +701,26 @@ export class CombatRun {
       shield.power -= absorbed;
       if (!shield.power) this.removeStatus(target, "Shielded");
     }
+    if (player && realAttack && incoming > amount) {
+      player.mitigation += incoming - amount;
+      this.credit(player, "mitigate", incoming - amount);
+    }
     const lost = Math.min(target.hp, amount);
     if (lost <= 0) return 0;
     target.hp -= lost;
     const caster = this.players.get(source);
-    if (caster) caster.damage += lost;
+    if (caster) {
+      caster.damage += lost;
+      const enemy = this.progressEnemy(target.id);
+      if (enemy) {
+        this.hadCombat = true;
+        enemy.contributions.set(
+          caster.id,
+          (enemy.contributions.get(caster.id) ?? 0) + lost,
+        );
+        this.credit(caster, "damage", lost);
+      }
+    }
     this.emit("damage", target.body, {
       source,
       target: target.id,
@@ -685,6 +745,7 @@ export class CombatRun {
     if (restored <= 0) return 0;
     target.hp += restored;
     source.healing += restored;
+    if (source.id !== target.id) this.credit(source, "heal", restored);
     this.emit("heal", target.body, {
       source: source.id,
       target: target.id,
@@ -701,6 +762,12 @@ export class CombatRun {
     source: string,
   ) {
     const old = target.statuses.get(key);
+    const caster = this.players.get(source);
+    if (!old && caster && this.progressEnemy(target.id)) {
+      if (key === "Burning") this.credit(caster, "burn", 1);
+      if (key === "Frozen") this.credit(caster, "freeze", 1);
+      if (key === "Slowed") this.credit(caster, "slow", 1);
+    }
     target.statuses.set(key, {
       remaining: Math.max(duration, old?.remaining ?? 0),
       power: Math.max(power, old?.power ?? 0),
@@ -750,6 +817,7 @@ export class CombatRun {
         player.maxMp,
         player.mp + (combatBalance.shrinePerSecond * ms) / 1000,
       );
+      this.credit(player, "mana", Math.floor(player.mp) - previous);
       if (Math.floor(player.mp / 20) > Math.floor(previous / 20))
         this.emit("mana", player.body, {
           target: player.id,
@@ -773,6 +841,19 @@ export class CombatRun {
           : "spawn/disintegrate",
     });
     if (mob) {
+      if (!mob.lifetime && mob.kind !== "overlord") {
+        for (const [id, damage] of mob.contributions) {
+          const contributor = this.players.get(id);
+          if (
+            contributor &&
+            eligible(contributor) &&
+            (id === source || damage >= mob.maxHp * 0.2)
+          ) {
+            contributor.kills++;
+            this.credit(contributor, "kill", 1);
+          }
+        }
+      }
       mob.ai = "DEAD";
       this.monsters.delete(target.id);
       if (mob.kind === "overlord") this.finish("VICTORY");
@@ -818,6 +899,7 @@ export class CombatRun {
       monsters: this.monstersDefeated,
       bossDefeated: outcome === "VICTORY",
       durationMs: Math.round(this.time),
+      qualifies: outcome === "VICTORY" || this.hadCombat,
       participants: [...this.players.values()].map((p) => ({
         id: p.id,
         name: p.name,
@@ -829,6 +911,10 @@ export class CombatRun {
             : "Dead",
         damage: p.damage,
         healing: p.healing,
+        mitigation: p.mitigation,
+        kills: p.kills,
+        slot: p.slot,
+        protectedAtEnd: p.protected,
       })),
     };
     this.shots.clear();
@@ -839,6 +925,23 @@ export class CombatRun {
 
   drainEvents() {
     return this.events.splice(0);
+  }
+
+  private progressEnemy(id: string) {
+    const enemy = this.monsters.get(id);
+    return enemy && !enemy.lifetime && enemy.kind !== "illusion"
+      ? enemy
+      : undefined;
+  }
+
+  private credit(player: CombatPlayer, metric: ProgressMetric, amount: number) {
+    if (this.onProgress && eligible(player) && amount > 0)
+      this.onProgress({
+        playerId: player.id,
+        wizard: player.wizard,
+        metric,
+        amount,
+      });
   }
 
   private nextId(prefix: string) {

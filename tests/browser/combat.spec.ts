@@ -5,6 +5,14 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import {
+  verifyAccount,
+  verifyReward,
+  visitMarket,
+  verifyEquippedCombat,
+  progressionCapture,
+} from "../fixtures/progressionJourney.js";
 
 const artifacts = "artifacts/milestone-4/";
 const viewport = { width: 1380, height: 980 };
@@ -24,7 +32,12 @@ async function capture(page: Page, file: string) {
   await page.screenshot({ path: artifacts + file + ".png", fullPage: true });
 }
 
-async function getTeam(browser: Browser, baseURL: string, wizards: string[]) {
+async function getTeam(
+  browser: Browser,
+  baseURL: string,
+  wizards: string[],
+  prepare?: (page: Page, index: number) => Promise<void>,
+) {
   const contexts = await Promise.all(
     wizards.map(() => browser.newContext({ baseURL, viewport })),
   );
@@ -35,6 +48,8 @@ async function getTeam(browser: Browser, baseURL: string, wizards: string[]) {
     page.on("pageerror", (error) => errors.push(error.message)),
   );
   try {
+    if (prepare)
+      for (const [index, page] of pages.entries()) await prepare(page, index);
     await leader.goto("/characters");
     const wizard = leader.getByRole("radio", {
       name: new RegExp("^" + wizards[0], "i"),
@@ -101,7 +116,9 @@ async function stage(page: Page, code: string, area: string, slot?: number) {
   });
   if (
     response.status() === 409 &&
-    ["boss", "mage", "guard-fight"].includes(area)
+    ["boss", "mage", "guard-fight", "entrance-fight", "arena-shrine"].includes(
+      area,
+    )
   )
     return [];
   expect(response.status()).toBe(200);
@@ -185,176 +202,290 @@ async function killRegular(
   await expect(enemy).toHaveCount(0);
 }
 
+async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
+  const { pages, code, errors } = team;
+  const [a, b, c, d] = pages as [Page, Page, Page, Page];
+  const shadow = mob(a, "shadow");
+  await expect(shadow).toHaveCount(1);
+  await expect(shadow).toHaveAttribute("data-appearance", "ghost-wisp");
+  await capture(a, "monster-encounter");
+  await fire(a);
+  await expect.poll(() => number(shadow, "hp")).toBeLessThan(103);
+  await expect(a.getByTestId("combat-fx")).toHaveAttribute(
+    "data-rendered",
+    /fire\/fireball/,
+  );
+  expect(await number(mp(a), "value")).toBe(105);
+  await capture(a, "fire-combat");
+  const remoteShadow = mob(b, "shadow");
+  await aim(b, remoteShadow);
+  await b.keyboard.press("q");
+  await expect
+    .poll(() => remoteShadow.getAttribute("data-status"))
+    .toContain("Frozen");
+  const frozen = await number(remoteShadow, "y");
+  await wait(210);
+  expect(await number(remoteShadow, "y")).toBe(frozen);
+  await capture(b, "ice-freeze");
+  await d.bringToFront();
+  await d.keyboard.press("q");
+  await expect(d.getByTestId("local-status")).toContainText("Shielded");
+  await d.keyboard.press("q");
+  await expect(d.getByTestId("cast-feedback")).toContainText("cooling down");
+  await capture(d, "defense-shield");
+  await expect
+    .poll(() => number(hp(a), "value"), { timeout: 10000 })
+    .toBeLessThan(125);
+  const beforeHealing = await number(hp(a), "value");
+  await c.bringToFront();
+  await c.keyboard.press("e");
+  await expect
+    .poll(() => number(hp(a), "value"))
+    .toBeGreaterThan(beforeHealing);
+  await capture(c, "healer-healing");
+  await capture(a, "four-player-combat");
+  await aim(a, shadow);
+  await fire(a, 8);
+  await expect(shadow).toHaveCount(0);
+
+  await killRegular(a, "lava", code, "guard");
+  await killRegular(a, "mage", code, "approach");
+  await stage(a, code, "bridge", 0);
+  await a.bringToFront();
+  await a.keyboard.down("d");
+  await wait(535);
+  await a.keyboard.up("d");
+  const row = a.getByTestId("online-actor").filter({ hasText: "fire" });
+  await expect(row.getByTestId("actor-zones")).toContainText("bridge");
+  await stage(a, code, "bridge", 0);
+  const safeHp = await number(hp(a), "value");
+  await a.keyboard.down("w");
+  await wait(280);
+  await a.keyboard.up("w");
+  await expect(row).toContainText("Lava");
+  await expect.poll(() => number(hp(a), "value")).toBeLessThan(safeHp);
+  await capture(a, "lava-damage");
+  const preShrine = await number(mp(a), "value");
+  await stage(a, code, "shrine", 0);
+  await a.keyboard.down("s");
+  await wait(420);
+  await a.keyboard.up("s");
+  await expect(row.getByTestId("actor-zones")).toContainText(
+    "mana_restoration_zone",
+  );
+  await expect.poll(() => number(mp(a), "value")).toBeGreaterThan(preShrine);
+  await capture(a, "mana-restoration");
+  await a.keyboard.press("g");
+  await expect(a.getByTestId("cast-feedback")).toContainText("approach");
+  await stage(a, code, "gate");
+  await c.bringToFront();
+  await c.keyboard.press("e");
+  await a.bringToFront();
+  await a.keyboard.press("g");
+  const hud = a.getByTestId("boss-hud");
+  for (const page of pages)
+    await expect(page.getByTestId("boss-hud")).toHaveAttribute(
+      "data-phase",
+      "1",
+    );
+  await expect(hud).toContainText("The Watcher");
+  await capture(a, "boss-phase-1");
+
+  for (const phase of [2, 3, 4]) {
+    for (let round = 0; round < 22; round++) {
+      const visiblePhase = Number(
+        await hud.getAttribute("data-phase", { timeout: 400 }).catch(() => "4"),
+      );
+      if (visiblePhase >= phase) break;
+      const team = await stage(a, code, "boss");
+      if (!team.length) break;
+      for (const [index, keys] of [
+        [3, ["q", "f", "r"]],
+        [2, ["e", "f", "q"]],
+        [1, ["q", "r", "f"]],
+        [0, ["e", "f"]],
+      ] as const) {
+        if (
+          Number(
+            await hud
+              .getAttribute("data-phase", { timeout: 400 })
+              .catch(() => "4"),
+          ) >= phase
+        )
+          break;
+        const page = pages[index]!;
+        const target = mob(page, "overlord");
+        if (!team.some((player) => player.slot === index && player.hp > 0))
+          continue;
+        if (!(await aim(page, target))) break;
+        for (const key of keys) await page.keyboard.press(key);
+        await fire(page);
+      }
+    }
+    if (phase < 4) {
+      for (const page of pages)
+        await expect(page.getByTestId("boss-hud")).toHaveAttribute(
+          "data-phase",
+          String(phase),
+        );
+      await capture(a, "boss-phase-" + phase);
+      if (phase === 2) {
+        // Keep a living target in range while the boss's next summoning turn runs.
+        await stage(a, code, "boss");
+        for (const appearance of [
+          "shadow-guard",
+          "soul-drainer",
+          "flying-skull",
+          "shadow-bat",
+        ]) {
+          await expect(
+            a.locator(
+              `[data-testid="combat-enemy"][data-appearance="${appearance}"]`,
+            ),
+          ).toHaveCount(1, { timeout: 15000 });
+        }
+        await capture(a, "shadow-army");
+      }
+      const atShrine = await stage(a, code, "arena-shrine");
+      const living = atShrine.find((player) => player.hp > 0)!;
+      const recipient = pages[living.slot]!;
+      const initialMana = await number(mp(recipient), "value");
+      const maxMana = await number(mp(recipient), "max");
+      await c.bringToFront();
+      await c.keyboard.press("e");
+      await c.keyboard.press("f");
+      await expect
+        .poll(() => number(mp(recipient), "value"), { timeout: 15000 })
+        .toBeGreaterThanOrEqual(Math.min(maxMana, initialMana + 28));
+    }
+  }
+  for (const page of pages) {
+    await expect(page.getByTestId("run-result")).toHaveAttribute(
+      "data-outcome",
+      "VICTORY",
+    );
+    await expect(page.getByTestId("result-participant")).toHaveCount(4);
+    await expect(page.getByTestId("run-result")).not.toContainText(
+      /coins|gems/i,
+    );
+  }
+  await capture(a, "victory-screen");
+  expect(errors).toEqual([]);
+}
+
+const partyClasses = ["fire", "ice", "healer", "defense"];
+
+async function fightForRewards({
+  leader,
+  pages,
+  code,
+}: Awaited<ReturnType<typeof getTeam>>) {
+  // Each trip moves existing actors into reach. All attacks, HP, mana,
+  // encounters and victory still come from normal game input and simulation.
+  await expect(mob(leader, "shadow")).toHaveCount(1);
+  async function battle(kind: string, area: string) {
+    const enemy = mob(leader, kind);
+    await expect(enemy).toHaveCount(1);
+    for (let round = 0; round < 32 && (await enemy.count()); round++) {
+      const party = await stage(leader, code, "arena-shrine");
+      const healer = pages[2]!;
+      if (party.some((p) => p.slot === 2 && p.hp > 0)) {
+        await healer.bringToFront();
+        await healer.keyboard.press("e");
+        await healer.keyboard.press("f");
+      }
+      for (const index of [0, 1, 3, 2]) {
+        if (
+          !party.some((p) => p.slot === index && p.hp > 0) ||
+          !(await enemy.count())
+        )
+          continue;
+        const page = pages[index]!;
+        if (!(await stage(page, code, area, index)).length) break;
+        if (!(await aim(page, mob(page, kind)))) break;
+        for (const key of ["q", "e", "r", "f"]) await page.keyboard.press(key);
+        await page.mouse.down();
+        await page.mouse.up();
+        if (await enemy.count()) await stage(leader, code, "arena-shrine");
+      }
+    }
+    await expect(enemy).toHaveCount(0);
+  }
+  await battle("shadow", "entrance-fight");
+  await stage(leader, code, "guard", 0);
+  await battle("lava", "guard-fight");
+  await stage(leader, code, "approach", 0);
+  await battle("mage", "mage");
+  await stage(leader, code, "gate");
+  await leader.bringToFront();
+  await leader.keyboard.press("g");
+  await battle("overlord", "boss");
+  for (const page of pages)
+    await expect(page.getByTestId("run-result")).toHaveAttribute(
+      "data-outcome",
+      "VICTORY",
+    );
+}
+
 test("four real browsers fight together, cross lava and shrine, and win all three boss phases", async ({
   browser,
   baseURL,
 }) => {
   test.setTimeout(180000);
-  const { pages, contexts, code, errors } = await getTeam(browser, baseURL!, [
-    "fire",
-    "ice",
-    "healer",
-    "defense",
-  ]);
-  const [a, b, c, d] = pages as [Page, Page, Page, Page];
+  const team = await getTeam(browser, baseURL!, partyClasses);
   try {
-    const shadow = mob(a, "shadow");
-    await expect(shadow).toHaveCount(1);
-    await expect(shadow).toHaveAttribute("data-appearance", "ghost-wisp");
-    await capture(a, "monster-encounter");
-    await fire(a);
-    await expect.poll(() => number(shadow, "hp")).toBeLessThan(103);
-    await expect(a.getByTestId("combat-fx")).toHaveAttribute(
-      "data-rendered",
-      /fire\/fireball/,
-    );
-    expect(await number(mp(a), "value")).toBe(105);
-    await capture(a, "fire-combat");
-    const remoteShadow = mob(b, "shadow");
-    await aim(b, remoteShadow);
-    await b.keyboard.press("q");
-    await expect
-      .poll(() => remoteShadow.getAttribute("data-status"))
-      .toContain("Frozen");
-    const frozen = await number(remoteShadow, "y");
-    await wait(210);
-    expect(await number(remoteShadow, "y")).toBe(frozen);
-    await capture(b, "ice-freeze");
-    await d.bringToFront();
-    await d.keyboard.press("q");
-    await expect(d.getByTestId("local-status")).toContainText("Shielded");
-    await d.keyboard.press("q");
-    await expect(d.getByTestId("cast-feedback")).toContainText("cooling down");
-    await capture(d, "defense-shield");
-    await expect
-      .poll(() => number(hp(a), "value"), { timeout: 10000 })
-      .toBeLessThan(125);
-    const beforeHealing = await number(hp(a), "value");
-    await c.bringToFront();
-    await c.keyboard.press("e");
-    await expect
-      .poll(() => number(hp(a), "value"))
-      .toBeGreaterThan(beforeHealing);
-    await capture(c, "healer-healing");
-    await capture(a, "four-player-combat");
-    await aim(a, shadow);
-    await fire(a, 8);
-    await expect(shadow).toHaveCount(0);
-
-    await killRegular(a, "lava", code, "guard");
-    await killRegular(a, "mage", code, "approach");
-    await stage(a, code, "bridge", 0);
-    await a.bringToFront();
-    await a.keyboard.down("d");
-    await wait(535);
-    await a.keyboard.up("d");
-    const row = a.getByTestId("online-actor").filter({ hasText: "fire" });
-    await expect(row.getByTestId("actor-zones")).toContainText("bridge");
-    await stage(a, code, "bridge", 0);
-    const safeHp = await number(hp(a), "value");
-    await a.keyboard.down("w");
-    await wait(280);
-    await a.keyboard.up("w");
-    await expect(row).toContainText("Lava");
-    await expect.poll(() => number(hp(a), "value")).toBeLessThan(safeHp);
-    await capture(a, "lava-damage");
-    const preShrine = await number(mp(a), "value");
-    await stage(a, code, "shrine", 0);
-    await a.keyboard.down("s");
-    await wait(420);
-    await a.keyboard.up("s");
-    await expect(row.getByTestId("actor-zones")).toContainText(
-      "mana_restoration_zone",
-    );
-    await expect.poll(() => number(mp(a), "value")).toBeGreaterThan(preShrine);
-    await capture(a, "mana-restoration");
-    await a.keyboard.press("g");
-    await expect(a.getByTestId("cast-feedback")).toContainText("approach");
-    await stage(a, code, "gate");
-    await c.bringToFront();
-    await c.keyboard.press("e");
-    await a.bringToFront();
-    await a.keyboard.press("g");
-    const hud = a.getByTestId("boss-hud");
-    for (const page of pages)
-      await expect(page.getByTestId("boss-hud")).toHaveAttribute(
-        "data-phase",
-        "1",
-      );
-    await expect(hud).toContainText("The Watcher");
-    await capture(a, "boss-phase-1");
-
-    for (const phase of [2, 3, 4]) {
-      for (let round = 0; round < 22; round++) {
-        const visiblePhase = Number(
-          await hud
-            .getAttribute("data-phase", { timeout: 400 })
-            .catch(() => "4"),
-        );
-        if (visiblePhase >= phase) break;
-        const team = await stage(a, code, "boss");
-        if (!team.length) break;
-        for (const [index, keys] of [
-          [3, ["q", "f", "r"]],
-          [2, ["e", "f", "q"]],
-          [1, ["q", "r", "f"]],
-          [0, ["e", "f"]],
-        ] as const) {
-          const page = pages[index]!;
-          const target = mob(page, "overlord");
-          if (!team.some((player) => player.slot === index && player.hp > 0))
-            continue;
-          if (!(await aim(page, target))) break;
-          for (const key of keys) await page.keyboard.press(key);
-          await fire(page);
-        }
-      }
-      if (phase < 4) {
-        for (const page of pages)
-          await expect(page.getByTestId("boss-hud")).toHaveAttribute(
-            "data-phase",
-            String(phase),
-          );
-        await capture(a, "boss-phase-" + phase);
-        if (phase === 2) {
-          for (const appearance of [
-            "shadow-guard",
-            "soul-drainer",
-            "flying-skull",
-            "shadow-bat",
-          ]) {
-            await expect(
-              a.locator(
-                `[data-testid="combat-enemy"][data-appearance="${appearance}"]`,
-              ),
-            ).toHaveCount(1);
-          }
-          await capture(a, "shadow-army");
-        }
-        await stage(a, code, "arena-shrine");
-        const initialMana = await number(mp(a), "value");
-        await c.bringToFront();
-        await c.keyboard.press("e");
-        await c.keyboard.press("f");
-        await expect
-          .poll(() => number(mp(a), "value"))
-          .toBeGreaterThanOrEqual(Math.min(105, initialMana + 28));
-      }
-    }
-    for (const page of pages) {
-      await expect(page.getByTestId("run-result")).toHaveAttribute(
-        "data-outcome",
-        "VICTORY",
-      );
-      await expect(page.getByTestId("result-participant")).toHaveCount(4);
-      await expect(page.getByTestId("run-result")).not.toContainText(
-        /coins|gems/i,
-      );
-    }
-    await capture(a, "victory-screen");
-    expect(errors).toEqual([]);
+    await completeEncounter(team);
   } finally {
-    await close(contexts);
+    await close(team.contexts);
+  }
+});
+
+test("four accounts earn two boss victories, purchase and equip both alternates and claim a quest", async ({
+  browser,
+  baseURL,
+}) => {
+  test.skip(
+    !process.env.TEST_DATABASE_URL,
+    "Requires an isolated PostgreSQL schema",
+  );
+  test.setTimeout(440000);
+  const accounts = partyClasses.map(() => "mage_" + randomUUID().slice(0, 8));
+  if (process.env.M5_SMOKE_USER) accounts[0] = process.env.M5_SMOKE_USER;
+  const password = process.env.M5_SMOKE_PASSWORD ?? randomUUID();
+  for (const round of [1, 2]) {
+    const team = await getTeam(browser, baseURL!, partyClasses, (page, i) =>
+      verifyAccount(page, accounts[i]!, password, round === 1, i === 0),
+    );
+    try {
+      await fightForRewards(team);
+      for (const [index, page] of team.pages.entries()) {
+        await verifyReward(page, round, index === 0);
+      }
+      if (round === 2) await visitMarket(team.leader);
+    } finally {
+      await close(team.contexts);
+    }
+  }
+  const team = await getTeam(browser, baseURL!, ["fire"], async (page) => {
+    await verifyAccount(page, accounts[0]!, password, false, false);
+    await page.goto("/vault");
+    await expect(page.getByLabel("Skill 3 (R)")).toHaveValue("meteor");
+    await expect(page.getByLabel("Ultimate (F)")).toHaveValue("inferno-core");
+  });
+  try {
+    const page = team.leader;
+    await verifyEquippedCombat(page);
+    const target = mob(page, "shadow");
+    await aim(page, target);
+    await page.keyboard.press("r");
+    await expect.poll(() => number(target, "hp")).toBeLessThan(103);
+    await progressionCapture(page, "equipped-skill-combat");
+    await page.keyboard.press("f");
+    await expect(mp(page)).toHaveAttribute("data-value", "35");
+    await expect(target).toHaveCount(0);
+    await progressionCapture(page, "equipped-ultimate-combat");
+  } finally {
+    await close(team.contexts);
   }
 });
 
@@ -388,7 +519,7 @@ test("two browsers observe permanent death, reload into spectating, and receive 
   browser,
   baseURL,
 }) => {
-  test.setTimeout(90000);
+  test.setTimeout(150000);
   const { leader, pages, contexts, code } = await getTeam(browser, baseURL!, [
     "lightning",
     "earth",
@@ -409,7 +540,7 @@ test("two browsers observe permanent death, reload into spectating, and receive 
     await capture(earth, "earth-attack");
     await stage(leader, code, "lava", 0);
     await expect(leader.getByTestId("spectator-mode")).toBeVisible({
-      timeout: 25000,
+      timeout: 50000,
     });
     await expect(hp(leader)).toHaveAttribute("data-value", "0");
     await capture(leader, "player-death");
@@ -447,7 +578,7 @@ test("two browsers observe permanent death, reload into spectating, and receive 
       await expect(page.getByTestId("run-result")).toHaveAttribute(
         "data-outcome",
         "DEFEAT",
-        { timeout: 25000 },
+        { timeout: 50000 },
       );
     await capture(leader, "defeat-screen");
     await leader

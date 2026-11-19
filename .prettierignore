@@ -3,3 +3,6 @@ apps/web/public/assets/fx/**
 playwright-report/
 test-results/
 .pixelfx-export/
+packages/progression/generated/
+.postgres-test/
+.progression-outbox/

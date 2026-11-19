@@ -42,6 +42,8 @@ export function publishCombat(
     entry.life = player.life;
     entry.statuses = [...player.statuses.keys()].join(", ");
     entry.castAck = player.sequence;
+    entry.skill3 = player.equipment.skill3 ?? "";
+    entry.ultimate = player.equipment.ultimate ?? "";
     for (const slot of abilitySlots)
       entry.cooldowns.set(slot, Math.ceil(player.cooldowns[slot] / 100));
   }

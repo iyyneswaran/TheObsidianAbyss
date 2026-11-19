@@ -8,13 +8,18 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "node tools/prepare-guest.mjs && pnpm -r --parallel dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.tools.json",
+    "verify:progression": "node tools/verify-progression.mjs",
+    "db:generate": "pnpm --filter @obsidian/progression db:generate",
+    "db:validate": "pnpm --filter @obsidian/progression db:validate",
+    "db:migrate": "pnpm --filter @obsidian/progression db:migrate",
+    "db:seed": "pnpm --filter @obsidian/progression db:seed",
+    "dev": "pnpm db:generate && node tools/prepare-guest.mjs && pnpm -r --parallel dev",
+    "build": "pnpm db:generate && pnpm -r build",
+    "typecheck": "pnpm db:generate && pnpm -r typecheck && tsc -p tsconfig.tools.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm test:unit && pnpm test:browser",
+    "test": "pnpm db:generate && pnpm test:unit && pnpm test:browser",
     "test:unit": "vitest run",
     "test:browser": "playwright test"
   },

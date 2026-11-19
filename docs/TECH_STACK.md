@@ -14,4 +14,4 @@ Versions below were verified on the Milestone 0 Windows workspace. Transitive ve
 | Tests                  | Vitest 5.1.1, Playwright 1.65.1                                                                                         |
 | Asset source           | PixelFX 0.3.1, used locally for export                                                                                  |
 
-PostgreSQL and Prisma are reserved for future milestones.
+Milestone 5 adds Prisma Client and CLI 6.19.3. The Compose file selects PostgreSQL 17. The Windows integration and browser runs used native PostgreSQL 18.7 on loopback. Node's built-in crypto module supplies scrypt and opaque account session tokens.

@@ -249,6 +249,7 @@ export function OnlineDungeon() {
       {session.members.length > 0 && <PartyRoster session={session} />}
       {session.result && (
         <RunSummary
+          settlement={session.settlement}
           result={session.result}
           onReturn={() => {
             void party.leave(true);

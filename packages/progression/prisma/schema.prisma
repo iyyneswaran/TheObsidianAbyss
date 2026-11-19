@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  COINS
+  GEMS
+}
+
+enum LedgerReason {
+  RUN_VICTORY_COINS
+  RUN_VICTORY_GEMS
+  RUN_DEFEAT_COINS
+  QUEST_REWARD
+  STORE_PURCHASE
+}
+
+enum Outcome {
+  VICTORY
+  DEFEAT
+}
+
+enum ParticipantStatus {
+  SURVIVED
+  DEAD
+  FORFEITED
+}
+
+model PlayerAccount {
+  id           String          @id @default(uuid()) @db.Uuid
+  username     String          @unique @db.VarChar(24)
+  passwordHash String
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(3)
+  profile      PlayerProfile?
+  sessions     PlayerSession[]
+}
+
+model PlayerProfile {
+  id             String              @id @default(uuid()) @db.Uuid
+  accountId      String?             @unique @db.Uuid
+  guestId        String?             @unique @db.Uuid
+  displayName    String              @db.VarChar(24)
+  xp             Int                 @default(0)
+  victories      Int                 @default(0)
+  defeats        Int                 @default(0)
+  monsters       Int                 @default(0)
+  damage         BigInt              @default(0)
+  healing        BigInt              @default(0)
+  mitigation     BigInt              @default(0)
+  wizard         String              @default("fire") @db.VarChar(12)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+  account        PlayerAccount?      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  wallet         Wallet?
+  ledger         WalletTransaction[]
+  ownership      OwnedAbility[]
+  loadouts       EquippedLoadout[]
+  purchases      StorePurchase[]
+  progress       QuestProgress[]
+  claims         QuestClaim[]
+  participants   RunParticipant[]
+  events         ProcessedGameEvent[]
+}
+
+model PlayerSession {
+  tokenHash String        @id @db.Char(64)
+  accountId String        @db.Uuid
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime      @db.Timestamptz(3)
+  revokedAt DateTime?     @db.Timestamptz(3)
+  account   PlayerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  @@index([accountId, expiresAt])
+}
+
+model Wallet {
+  profileId String        @id @db.Uuid
+  coins     Int           @default(0)
+  gems      Int           @default(0)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
+  profile   PlayerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+}
+
+model WalletTransaction {
+  id        String        @id @default(uuid()) @db.Uuid
+  profileId String        @db.Uuid
+  currency  Currency
+  amount    Int
+  reason    LedgerReason
+  source    String        @db.VarChar(128)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  profile   PlayerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  purchase  StorePurchase?
+  claim     QuestClaim?
+  @@unique([profileId, currency, reason, source])
+  @@index([profileId, createdAt])
+}
+
+model RunResult {
+  id           String           @id @db.Uuid
+  partyId      String           @db.VarChar(24)
+  outcome      Outcome
+  rosterSize   Int
+  rewardVersion Int
+  qualifies    Boolean
+  monsters     Int
+  startedAt    DateTime         @db.Timestamptz(3)
+  endedAt      DateTime         @db.Timestamptz(3)
+  settledAt    DateTime         @default(now()) @db.Timestamptz(3)
+  participants RunParticipant[]
+}
+
+model RunParticipant {
+  runId       String            @db.Uuid
+  slot        Int
+  profileId   String?           @db.Uuid
+  wizard      String            @db.VarChar(12)
+  status      ParticipantStatus
+  eligible    Boolean
+  damage      Int
+  healing     Int
+  mitigation  Int
+  kills       Int
+  coins       Int
+  gems        Int
+  xp          Int
+  run         RunResult         @relation(fields: [runId], references: [id], onDelete: Restrict)
+  profile     PlayerProfile?    @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  @@id([runId, slot])
+  @@unique([runId, profileId])
+  @@index([profileId, runId])
+}
+
+model OwnedAbility {
+  profileId String        @db.Uuid
+  abilityId String        @db.VarChar(48)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  profile   PlayerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  @@id([profileId, abilityId])
+}
+
+model EquippedLoadout {
+  profileId String        @db.Uuid
+  wizard    String        @db.VarChar(12)
+  skill3    String?       @db.VarChar(48)
+  ultimate  String?       @db.VarChar(48)
+  revision  Int           @default(1)
+  profile   PlayerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  @@id([profileId, wizard])
+}
+
+model StorePurchase {
+  profileId  String            @db.Uuid
+  requestKey String            @db.Uuid
+  abilityId  String            @db.VarChar(48)
+  currency   Currency
+  price      Int
+  ledgerId   String            @unique @db.Uuid
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  profile    PlayerProfile     @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  ledger     WalletTransaction @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  @@id([profileId, requestKey])
+  @@unique([profileId, abilityId])
+}
+
+model QuestProgress {
+  profileId  String        @db.Uuid
+  instanceId String        @db.VarChar(64)
+  progress   Int
+  deadline   DateTime      @db.Timestamptz(3)
+  profile    PlayerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  @@id([profileId, instanceId])
+  @@index([profileId, deadline])
+}
+
+model QuestClaim {
+  profileId  String            @db.Uuid
+  instanceId String            @db.VarChar(64)
+  ledgerId   String            @unique @db.Uuid
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  profile    PlayerProfile     @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  ledger     WalletTransaction @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  @@id([profileId, instanceId])
+}
+
+model ProcessedGameEvent {
+  id        String        @id @db.VarChar(100)
+  runId     String        @db.Uuid
+  profileId String        @db.Uuid
+  kind      String        @db.VarChar(24)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  profile   PlayerProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  @@index([runId])
+  @@index([profileId, createdAt])
+}
+
+model CatalogEntry {
+  id      String @id @db.VarChar(64)
+  kind    String @db.VarChar(16)
+  version Int
+  data    Json
+}

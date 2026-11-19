@@ -34,6 +34,7 @@ export interface PartySnapshot {
   error: string;
   castError: string;
   result: RunResult | null;
+  settlement: string;
   encounter: string;
   cleared: number;
   gateOpen: boolean;
@@ -42,6 +43,7 @@ export interface PartySnapshot {
     mp: number;
     maxMp: number;
     statuses: string;
+    equipment: { skill3: string | null; ultimate: string | null };
     cooldowns: Partial<Record<AbilitySlot, number>>;
   } | null;
 }
@@ -57,6 +59,7 @@ const blank: PartySnapshot = {
   error: "",
   castError: "",
   result: null,
+  settlement: "",
   encounter: "",
   cleared: 0,
   gateOpen: false,
@@ -371,6 +374,7 @@ class PartyConnection {
       encounter: combat?.encounter ?? "",
       cleared: combat?.cleared ?? 0,
       gateOpen: combat?.gateOpen ?? false,
+      settlement: combat?.settlement ?? "",
       boss: boss
         ? {
             hp: boss.hp,
@@ -386,6 +390,10 @@ class PartyConnection {
             mp: local.mp,
             maxMp: local.maxMp,
             statuses: local.statuses,
+            equipment: {
+              skill3: local.skill3 || null,
+              ultimate: local.ultimate || null,
+            },
             cooldowns: Object.fromEntries(local.cooldowns.entries()),
           }
         : null,

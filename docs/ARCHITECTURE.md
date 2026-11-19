@@ -34,12 +34,15 @@ Unexpected drops reserve a protected seat until the recovery window expires. Vol
 
 The Colyseus server exposes the temporary `test_room` and the private `coop_dungeon` room through its WebSocket transport. The browser uses the official Colyseus SDK for seat consumption and reconnection.
 
-The Fastify API starts independently. Its health route returns a typed service response, and Zod validates the service configuration. CORS authorizes the configured frontend origin. PostgreSQL and Prisma are planned for later persistence work.
+The Fastify API starts independently. Its health route returns a typed service response, and Zod validates the service configuration. CORS authorizes the configured frontend origin. Fastify and the Colyseus process use separate Prisma connections to the same PostgreSQL database. The browser receives explicit response contracts for account, profile, wallet, store, loadout and quest data.
+
+Each private seat binds a signed guest ID to its verified profile. The room copies the selected class and owned abilities at dungeon start. Actual combat contributions flow into per-player, per-day batches. The game process writes batches and the final roster receipt to a private disk outbox. A worker applies them in serializable PostgreSQL transactions. Durable run, event, purchase and claim keys make retry safe. The game publishes settlement status to every connected roster member.
 
 ## Packages
 
 - `@obsidian/shared` owns service identifiers, local ports, health, and the cooperative wire schemas. Its separate Node-only guest entry point handles credential signing and verification.
 - `@obsidian/game-core` owns the logical viewport, Tiled map reader, and engine-independent terrain and zone queries.
 - `@obsidian/game-assets` owns effect paths, metadata types, and playback configuration.
+- `@obsidian/progression` owns Prisma migrations and the server-only identity, currency, equipment and quest services. The shared combat engine owns the fourteen alternate ability definitions.
 
 The workspace builds packages before dependent apps. Development uses source exports and production builds resolve compiled package exports. The small set of React controls lives in the web app.

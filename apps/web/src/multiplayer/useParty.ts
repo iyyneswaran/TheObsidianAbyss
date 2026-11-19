@@ -10,6 +10,11 @@ export function PartyRouteLifecycle() {
   const { pathname } = useLocation();
   useEffect(() => {
     if (
+      party.getSnapshot().phase === "LOBBY" &&
+      ["/vault", "/store", "/quests", "/profile"].includes(pathname)
+    )
+      return;
+    if (
       pathname !== "/party" &&
       pathname !== "/dungeon/online" &&
       party.getSnapshot().connection !== "idle"

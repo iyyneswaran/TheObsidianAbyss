@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   abilitySlots,
+  alternatives,
+  type CombatProgress,
   bodyAt,
   clearSight,
   combatBalance,
@@ -167,6 +169,91 @@ describe("authoritative wizard loadouts", () => {
     expect(victim.hp).toBeLessThan(hp);
     advance(fire, 1800);
     expect(victim.statuses.has("Burning")).toBe(false);
+  });
+});
+
+describe("purchased abilities and authoritative progression", () => {
+  for (const ability of alternatives) {
+    it(
+      ability.name +
+        " locks to its class slot, consumes mana and resolves on the server",
+      () => {
+        const run = new CombatRun("alternate", map);
+        const equipment = {
+          skill3: ability.slot === "SKILL_3" ? ability.id : null,
+          ultimate: ability.slot === "ULTIMATE" ? ability.id : null,
+        };
+        run.addPlayer(
+          "hero",
+          "Hero",
+          ability.wizard,
+          0,
+          bodyAt(floor),
+          false,
+          equipment,
+        );
+        run.addPlayer("ally", "Ally", "healer", 1, bodyAt(point));
+        const hero = run.players.get("hero")!;
+        const ally = run.players.get("ally")!;
+        const boss = run.summon("overlord", point, "boss")!;
+        boss.attackIn = 15000;
+        if (ability.heal) run.damage(ally, 80, boss.id);
+        const allyHp = ally.hp;
+        run.setProtected("hero", true);
+        expect(cast(run, ability.slot)).toMatch(/cannot cast/);
+        run.setProtected("hero", false);
+        expect(cast(run, ability.slot)).toBeUndefined();
+        expect(hero.mp).toBe(hero.maxMp - ability.mana);
+        expect(hero.cooldowns[ability.slot]).toBe(ability.cooldownMs);
+        expect(cast(run, ability.slot)).toMatch(/cooling down/);
+        if (ability.shield)
+          expect(hero.statuses.get("Shielded")?.power).toBe(ability.shield);
+        if (ability.block)
+          expect(hero.statuses.get("Blocking")?.power).toBe(ability.block);
+        if (ability.taunt) expect(hero.statuses.has("Taunting")).toBe(true);
+        if (ability.delayMs) expect(boss.hp).toBe(boss.maxHp);
+        advance(run, (ability.delayMs ?? 0) + 100);
+        if (ability.status)
+          expect(boss.statuses.has(ability.status)).toBe(true);
+        if (ability.damage) expect(boss.hp).toBeLessThan(boss.maxHp);
+        if (ability.heal) expect(ally.hp).toBeGreaterThan(allyHp);
+        else expect(ally.hp).toBe(allyHp);
+        run.damage(hero, 1000, boss.id);
+        expect(cast(run, ability.slot)).toMatch(/cannot cast/);
+      },
+    );
+  }
+
+  it("credits only actual teammate healing and actual hostile damage prevented", () => {
+    const events: CombatProgress[] = [];
+    const run = new CombatRun("credit", map, (e) => events.push(e));
+    run.addPlayer("hero", "Guard", "defense", 0, bodyAt(floor));
+    run.addPlayer("ally", "Medic", "healer", 1, bodyAt(point));
+    const hero = run.players.get("hero")!;
+    const ally = run.players.get("ally")!;
+    const enemy = run.summon("shadow", point, "encounter")!;
+    expect(cast(run, "SKILL_1")).toBeUndefined();
+    expect(events).toHaveLength(0);
+    expect(run.damage(hero, 8, enemy.id)).toBe(0);
+    expect(
+      events.filter((e) => e.metric === "mitigate").map((e) => e.amount),
+    ).toEqual([8]);
+    run.damage(hero, 60, enemy.id);
+    const missing = hero.maxHp - hero.hp;
+    expect(missing).toBeGreaterThan(0);
+    expect(run.heal(hero, 999, ally)).toBe(missing);
+    expect(run.heal(hero, 999, ally)).toBe(0);
+    run.setProtected(hero.id, true);
+    expect(run.damage(hero, 8, enemy.id)).toBe(0);
+    expect(run.heal(hero, 999, ally)).toBe(0);
+    expect(
+      events.filter((e) => e.metric === "heal").map((e) => e.amount),
+    ).toEqual([missing]);
+    const summon = run.summon("servant", point, "boss", 3000)!;
+    run.damage(summon, 999, ally.id);
+    expect(
+      events.some((e) => e.metric === "kill" || e.metric === "damage"),
+    ).toBe(false);
   });
 });
 

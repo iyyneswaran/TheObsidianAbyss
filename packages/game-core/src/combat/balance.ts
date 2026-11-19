@@ -11,7 +11,7 @@ export type Buff = "Shielded" | "Blocking" | "Charged" | "Taunting";
 export type Status = Ailment | Buff;
 export type Aim = "auto" | "halo" | "enemy" | "ground" | "direction" | "self";
 export type Shape =
-  "direct" | "projectile" | "radius" | "cone" | "chain" | "dash";
+  "direct" | "projectile" | "radius" | "cone" | "line" | "chain" | "dash";
 
 export interface Effect {
   damage?: number;
@@ -22,6 +22,7 @@ export interface Effect {
 }
 
 export interface Ability extends Effect {
+  width?: number;
   name: string;
   fx: string;
   aim: Aim;

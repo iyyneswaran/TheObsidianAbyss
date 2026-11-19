@@ -84,6 +84,7 @@ defineTypes(SpellState, {
 });
 
 export class CombatState extends Schema {
+  declare settlement: string;
   declare enemies: MapSchema<MonsterState>;
   declare projectiles: MapSchema<SpellState>;
   declare telegraphs: MapSchema<SpellState>;
@@ -100,11 +101,13 @@ export class CombatState extends Schema {
     this.projectiles = new MapSchema<SpellState>();
     this.telegraphs = new MapSchema<SpellState>();
     this.encounter = this.result = "";
+    this.settlement = "";
     this.cleared = this.phase = this.elapsed = 0;
     this.gateOpen = false;
   }
 }
 defineTypes(CombatState, {
+  settlement: "string",
   enemies: { map: MonsterState },
   projectiles: { map: SpellState },
   telegraphs: { map: SpellState },

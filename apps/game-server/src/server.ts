@@ -3,6 +3,7 @@ import type { IncomingMessage } from "node:http";
 import { matchMaker, Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { readDungeonMap, type TiledDungeonMap } from "@obsidian/game-core";
+import { resolveProfile } from "@obsidian/progression";
 import { TEST_ROOM } from "@obsidian/shared";
 import { COOP_ROOM } from "@obsidian/shared/coop";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@obsidian/shared/guest";
 import { PartyDirectory } from "./party/directory.js";
 import { partyRouter } from "./party/routes.js";
+import type { GameProgression } from "./party/progression.js";
 import { partySpawns } from "./party/simulation.js";
 import { CoopDungeonRoom } from "./rooms/CoopDungeonRoom.js";
 import { TestRoom } from "./rooms/TestRoom.js";
@@ -20,6 +22,7 @@ export interface CoopConfig {
   webOrigin: string;
   recoverySeconds: number;
   dropLimit: number;
+  progression?: GameProgression;
 }
 
 export function loadCanonicalMap(combat = false) {
@@ -39,38 +42,67 @@ export function createGameServer(gracefullyShutdown = true, coop?: CoopConfig) {
   const guests = coop ? createGuestSessions(coop.secret) : undefined;
   const transport = new WebSocketTransport({
     maxPayload: 8192,
-    verifyClient({ req }: { req: IncomingMessage }) {
+    verifyClient(
+      { req }: { req: IncomingMessage },
+      done: (allowed: boolean) => void,
+    ) {
       // Use the same URL shape and room-id parsing as WebSocketTransport 0.17.
       const url = new URL(`ws://server/${req.url}`);
       const roomId = url.pathname.match(
         /\/[a-zA-Z0-9_-]+\/([a-zA-Z0-9_-]+)$/,
       )?.[1];
       const room = roomId ? matchMaker.getLocalRoomById(roomId) : undefined;
-      if (!(room instanceof CoopDungeonRoom)) return true;
+      if (!(room instanceof CoopDungeonRoom)) return done(true);
       const identity = guests?.verify(req.headers.cookie);
-      return Boolean(
+      const sessionId = url.searchParams.get("sessionId") ?? "";
+      const allowed = Boolean(
         coop &&
         isAllowedWebOrigin(req.headers.origin, coop.webOrigin) &&
         identity &&
         room.permitsSocket(
-          url.searchParams.get("sessionId") ?? "",
+          sessionId,
           identity.guestId,
           url.searchParams.get("reconnectionToken"),
         ),
       );
+      if (!allowed || !coop?.progression || !identity) return done(allowed);
+      const cookie = req.headers.cookie;
+      const guestId = /(?:^|;\s*)obsidian_account=/.test(cookie ?? "")
+        ? undefined
+        : identity.guestId;
+      void resolveProfile(coop.progression.db, cookie, guestId)
+        .then((profile) =>
+          done(
+            Boolean(profile && room.socketProfile(sessionId) === profile.id),
+          ),
+        )
+        .catch(() => done(false));
     },
   });
   const server = new Server({ transport, gracefullyShutdown, greet: false });
+  if (coop?.progression) {
+    const { db, outbox } = coop.progression;
+    server.onShutdown(async () => {
+      await outbox.close();
+      await db.$disconnect();
+    });
+  }
   server.define(TEST_ROOM, TestRoom);
   if (coop && guests) {
     const map = loadCanonicalMap(true);
-    server.router = partyRouter(directory, guests, coop.webOrigin);
+    server.router = partyRouter(
+      directory,
+      guests,
+      coop.webOrigin,
+      coop.progression,
+    );
     server.define(COOP_ROOM, CoopDungeonRoom, {
       directory,
       map,
       spawns: partySpawns(map),
       recoverySeconds: coop.recoverySeconds,
       dropLimit: coop.dropLimit,
+      ...(coop.progression ? { progression: coop.progression } : {}),
     });
   }
   return { server, transport, directory };

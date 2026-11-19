@@ -1,5 +1,34 @@
 # Windows development
 
+## Persistent progression
+
+Run these commands from the repository root. For a fresh PostgreSQL installation using Docker Desktop, generate a local password once and keep the same password for that volume. Set the root `.env` values `POSTGRES_PASSWORD` and `DATABASE_URL` to matching values for subsequent sessions. The API and game server require the same database and guest signing secret.
+
+```powershell
+pnpm install --frozen-lockfile
+$env:POSTGRES_PASSWORD = node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"
+$env:DATABASE_URL = "postgresql://obsidian:$($env:POSTGRES_PASSWORD)@localhost:55432/obsidian"
+docker compose up -d --wait postgres
+pnpm db:generate
+pnpm db:validate
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+```
+
+A native PostgreSQL service also works. Point `DATABASE_URL` at its game database, then run the same Prisma commands. `GET /health/database` checks database access and the migrated catalog. Set `PROGRESSION_OUTBOX_DIRECTORY` to a private, writable, persistent directory for each game-server instance.
+
+For full release verification, create a dedicated test database once, then run the suite. The following uses the same Compose instance.
+
+```powershell
+docker compose exec -T postgres createdb -U obsidian obsidian_test
+$env:TEST_DATABASE_URL = "postgresql://obsidian:$($env:POSTGRES_PASSWORD)@localhost:55432/obsidian_test"
+pnpm exec playwright install chromium --only-shell
+pnpm verify:progression
+```
+
+The verifier creates and drops its own unique schema inside the test database. It checks formatting, types, lint, production builds, Vitest, browser gameplay and a fresh production service startup. Its default web, game and API ports are 5180, 2574 and 3012. Set `WEB_PORT`, `GAME_PORT` and `API_PORT` to override them. The browser harness uses API port plus 1000 for its loopback-only positioning fixture. Ordinary `pnpm test` without an isolated test URL skips PostgreSQL-dependent cases.
+
 Online combat uses **left click** for the free basic, **Q/E/R/F** for the selected wizard's abilities, **G** for the Shadow Gate, and **F3** for development diagnostics. Private team setup remains at `/party`. The inspector and solo movement routes use the original map. See [Milestone 4](milestone-4.md) for combat tests and screenshots.
 
 Use PowerShell in the repository root. `pnpm dev` starts the web, game server, and API together. For independent development, run a single workspace command.

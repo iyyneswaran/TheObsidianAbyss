@@ -52,6 +52,8 @@ The public FX directory carries the upstream MIT license and notice in `PIXELFX-
 
 ## Re-export or add an effect
 
+Milestone 5 uses the existing class sprite sheets in the Store and Vault and existing registered Aseprite effects for all fourteen purchasable abilities. The class-to-effect mapping is in [the alternate combat definitions](../packages/game-core/src/combat/alternates.ts). The Shadow Overlord and its army continue to use the directional sheets documented above.
+
 The [combat registry](../packages/game-assets/src/combat.ts) records the online effects used by Milestone 4. Combat exports accept `--compact` to create half-size pixel atlases with nearest-neighbor sampling via FFmpeg. Frost Nova keeps its original export. Regenerate monster sheets with `node tools/characters/monsters.mjs`. See [Monster sprites](#monster-sprites) for the layout and palette details.
 
 From the game root, pass the PixelFX checkout and a single catalog ID to the wrapper.

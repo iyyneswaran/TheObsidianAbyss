@@ -162,19 +162,26 @@ test("plays each facing animation, follows the wizard, and stops when movement k
   ] as const) {
     const start = await position(page);
     const walk = `wizard.fire.walk.${direction}`;
-    const frames = new Set<string>();
     await held(page, [key], async () => {
       await expect(field(page, "animation")).toHaveText(walk);
-      await expect
-        .poll(
-          async () => {
-            if ((await field(page, "animation").innerText()) === walk)
-              frames.add(await field(page, "frame").innerText());
-            return frames.size;
-          },
-          { timeout: 750, intervals: [25, 40, 45] },
-        )
-        .toBe(3);
+      const frames = await page.evaluate(async (animation) => {
+        const observed = new Set<string>();
+        const deadline = performance.now() + 2000;
+        while (observed.size < 3 && performance.now() < deadline) {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => resolve()),
+          );
+          const active = document.querySelector(
+            '[data-testid="player-animation"]',
+          )?.textContent;
+          const frame = document.querySelector(
+            '[data-testid="player-frame"]',
+          )?.textContent;
+          if (active === animation && frame) observed.add(frame);
+        }
+        return observed.size;
+      }, walk);
+      expect(frames).toBe(3);
     });
     await expect(field(page, "animation")).toHaveText(
       `wizard.fire.idle.${direction}`,

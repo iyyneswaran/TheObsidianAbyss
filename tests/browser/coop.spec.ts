@@ -213,6 +213,24 @@ test("four independent browsers share wizards, authoritative movement, and ident
     await snapshot(a, "four-player-dungeon");
     await showDebug(a);
 
+    // Clear the entrance with real controls before the movement and reconnect checks.
+    const entranceEnemy = a.locator(
+      '[data-testid="combat-enemy"][data-kind="shadow"]',
+    );
+    await expect(entranceEnemy).toHaveCount(1);
+    const canvas = a.getByTestId("online-stage").locator("canvas");
+    for (
+      let volley = 0;
+      volley < 12 && (await entranceEnemy.count());
+      volley++
+    ) {
+      await canvas.click({ position: { x: 500, y: 300 } });
+      await a.keyboard.press("q");
+      await a.keyboard.press("e");
+      await a.waitForTimeout(590);
+    }
+    await expect(entranceEnemy).toHaveCount(0);
+
     const fireStart = await position(a, "fire");
     const iceStart = await position(a, "ice");
     await hold(a, "s", async () => {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { matchMaker, Room, ServerError, type Client } from "@colyseus/core";
+import { lockedEquipment } from "@obsidian/progression";
 import {
   CombatRun,
   playerTerrain,
@@ -21,6 +22,7 @@ import {
   startSchema,
 } from "@obsidian/shared/coop";
 import { publishCombat } from "../party/combat.js";
+import { RunProgression, type GameProgression } from "../party/progression.js";
 import { PartyError, type PartyDirectory } from "../party/directory.js";
 import {
   acceptInput,
@@ -39,6 +41,7 @@ export interface CoopRoomOptions {
   spawns: PlayerTransform[];
   recoverySeconds: number;
   dropLimit: number;
+  progression?: GameProgression;
 }
 
 interface Seat {
@@ -46,6 +49,7 @@ interface Seat {
   playerId: string;
   wizard: WizardClassId;
   slot: number;
+  profile?: { id: string; displayName: string };
 }
 
 interface Member extends Seat {
@@ -63,6 +67,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
   private pending = new Map<string, Seat>();
   private members = new Map<string, Member>();
   private run?: CombatRun;
+  private progression?: RunProgression;
 
   static override async onAuth() {
     throw new ServerError(4215, "Use private team entry.");
@@ -128,7 +133,17 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     );
   }
 
-  async reserveGuest(guestId: string, wizard: WizardClassId) {
+  hasProfile(profileId: string) {
+    return [...this.members.values(), ...this.pending.values()].some(
+      (member) => member.profile?.id === profileId,
+    );
+  }
+
+  async reserveGuest(
+    guestId: string,
+    wizard: WizardClassId,
+    profile?: Seat["profile"],
+  ) {
     if (this.state.phase !== "LOBBY")
       throw new PartyError(409, "The dungeon has already started.");
     if (this.hasGuest(guestId))
@@ -143,7 +158,13 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     );
     if (slot === undefined) throw new PartyError(409, "This team is full.");
     const sessionId = randomUUID();
-    const seat = { guestId, playerId: randomUUID(), wizard, slot };
+    const seat = {
+      guestId,
+      playerId: randomUUID(),
+      wizard,
+      slot,
+      ...(profile ? { profile } : {}),
+    };
     this.pending.set(sessionId, seat);
     const expiration = this.clock.setTimeout(
       () => this.pending.delete(sessionId),
@@ -164,11 +185,11 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     }
   }
 
-  async reserveReconnect(guestId: string) {
+  async reserveReconnect(guestId: string, profileId?: string) {
     const entry = [...this.members.values()].find(
       (member) => member.guestId === guestId,
     );
-    if (!entry)
+    if (!entry || entry.profile?.id !== profileId)
       throw new PartyError(403, "This guest does not own a seat on this team.");
     if (!entry.disconnected)
       throw new PartyError(409, "This seat is still connected.");
@@ -212,6 +233,11 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     );
   }
 
+  socketProfile(sessionId: string) {
+    return (this.pending.get(sessionId) ?? this.members.get(sessionId))?.profile
+      ?.id;
+  }
+
   override onJoin(client: Client) {
     const seat = this.pending.get(client.sessionId);
     this.pending.delete(client.sessionId);
@@ -224,7 +250,9 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
       drops: [],
     });
     const player = new CoopPlayer();
-    player.name = `Guest ${seat.playerId.slice(0, 4).toUpperCase()}`;
+    player.name =
+      seat.profile?.displayName ??
+      `Guest ${seat.playerId.slice(0, 4).toUpperCase()}`;
     player.slot = seat.slot;
     player.wizard = seat.wizard;
     this.state.players.set(seat.playerId, player);
@@ -277,6 +305,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     this.members.delete(client.sessionId);
     this.state.players.delete(member.playerId);
     this.run?.forfeit(member.playerId);
+    this.finishRun();
     if (this.state.leaderId === member.playerId) {
       const next = [...this.members.values()]
         .filter((entry) => !entry.disconnected)
@@ -288,6 +317,8 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
   }
 
   override onDispose() {
+    this.finishRun();
+    this.progression?.flush();
     this.state.phase = "ENDED";
     this.options.directory.rooms.delete(this.state.code);
   }
@@ -303,7 +334,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     client.send("party_error", { message });
   }
 
-  private start(client: Client, message: unknown) {
+  private async start(client: Client, message: unknown) {
     const owner = this.owner(client);
     if (!owner || owner.playerId !== this.state.leaderId)
       return this.reject(client, "Only the team leader can start.");
@@ -321,10 +352,39 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
       return this.reject(client, "Confirm the incomplete team warning first.");
     }
     this.state.phase = "STARTING";
-    this.run = new CombatRun(this.roomId, this.options.map);
+    const services = this.options.progression;
+    const roster = [...this.members.values()].map((member) => ({
+      member,
+      player: this.state.players.get(member.playerId)!,
+    }));
+    const equipment = await Promise.all(
+      roster.map(({ member, player }) =>
+        services && member.profile
+          ? lockedEquipment(services.db, member.profile.id, player.wizard)
+          : undefined,
+      ),
+    ).catch(() => null);
+    if (this.state.phase !== "STARTING") return;
+    if (!equipment) {
+      this.state.phase = "LOBBY";
+      return this.reject(
+        client,
+        "The Vault is unavailable. Try starting again shortly.",
+      );
+    }
+    const id = randomUUID();
+    if (services)
+      this.progression = new RunProgression(
+        services,
+        id,
+        this.roomId,
+        roster.map(({ member }) => [member.playerId, member.profile?.id]),
+      );
+    this.run = new CombatRun(id, this.options.map, (event) =>
+      this.progression?.capture(event),
+    );
     void this.lock().catch(() => this.disconnect());
-    for (const member of this.members.values()) {
-      const player = this.state.players.get(member.playerId)!;
+    for (const [index, { member, player }] of roster.entries()) {
       Object.assign(player, this.options.spawns[member.slot]);
       this.run.addPlayer(
         member.playerId,
@@ -333,8 +393,12 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
         player.slot,
         player,
         Boolean(member.disconnected),
+        equipment[index],
       );
     }
+    for (const { member } of roster)
+      if (!this.members.has(member.client.sessionId))
+        this.run.forfeit(member.playerId);
     publishCombat(this.state, this.run, () => {});
     this.clock.setTimeout(() => {
       if (this.state.phase === "STARTING") this.state.phase = "ACTIVE";
@@ -364,9 +428,36 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     }
     run.step(stepMs);
     publishCombat(this.state, run, (event) => this.broadcast("combat", event));
-    if (run.ended) {
-      this.state.phase = "ENDED";
-      this.clock.setTimeout(() => void this.disconnect(), 120_000);
+    if (this.state.tick % 30 === 0) this.progression?.flush();
+    this.finishRun();
+  }
+
+  private finishRun() {
+    if (!this.run?.result || this.state.phase === "ENDED") return;
+    this.state.phase = "ENDED";
+    this.state.combat.result = JSON.stringify(this.run.result);
+    const progression = this.progression;
+    if (progression) {
+      this.state.combat.settlement = "PENDING";
+      progression.finish(this.run.result);
+      let polling = false;
+      const check = this.clock.setInterval(() => {
+        if (polling) return;
+        polling = true;
+        void progression
+          .hasSettled()
+          .then((settled) => {
+            if (settled) {
+              this.state.combat.settlement = "SETTLED";
+              check.clear();
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            polling = false;
+          });
+      }, 1500);
     }
+    this.clock.setTimeout(() => void this.disconnect(), 120_000);
   }
 }

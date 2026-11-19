@@ -68,6 +68,8 @@ export class CoopPlayer extends Schema {
   declare maxMp: number;
   declare statuses: string;
   declare castAck: number;
+  declare skill3: string;
+  declare ultimate: string;
   declare cooldowns: MapSchema<number>;
 
   constructor() {
@@ -85,6 +87,7 @@ export class CoopPlayer extends Schema {
     this.acknowledged = 0;
     this.hp = this.maxHp = this.mp = this.maxMp = this.castAck = 0;
     this.statuses = "";
+    this.skill3 = this.ultimate = "";
     this.cooldowns = new MapSchema<number>();
   }
 }
@@ -106,6 +109,8 @@ defineTypes(CoopPlayer, {
   mp: "uint16",
   maxMp: "uint16",
   statuses: "string",
+  skill3: "string",
+  ultimate: "string",
   castAck: "uint32",
   cooldowns: { map: "uint16" },
 });

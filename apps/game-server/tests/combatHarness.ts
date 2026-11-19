@@ -6,6 +6,11 @@ if (typeof globalThis.WebSocket === "undefined") {
 }
 
 import { createServer } from "node:http";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createDatabase, ProgressionOutbox } from "@obsidian/progression";
+import { isolatedTestDatabase } from "../../../tests/fixtures/progression.js";
 import {
   bodyAt,
   center,
@@ -21,7 +26,19 @@ if (process.env.NODE_ENV !== "test" || !process.env.COMBAT_FIXTURE_KEY)
   throw new Error("The Playwright harness is available only in test runs.");
 
 const env = readConfig();
+const url = isolatedTestDatabase();
+const db = url ? createDatabase(url) : undefined;
+const progression = db
+  ? {
+      db,
+      outbox: new ProgressionOutbox(
+        db,
+        await mkdtemp(join(tmpdir(), "obsidian-test-outbox-")),
+      ),
+    }
+  : undefined;
 const { server, directory } = createGameServer(true, {
+  ...(progression ? { progression } : {}),
   secret: process.env.GUEST_SESSION_SECRET!,
   webOrigin: env.WEB_ORIGIN,
   recoverySeconds: env.PARTY_RECOVERY_SECONDS,
@@ -29,6 +46,7 @@ const { server, directory } = createGameServer(true, {
 });
 
 const stages = [
+  "entrance-fight",
   "guard",
   "approach",
   "bridge",
@@ -59,9 +77,11 @@ function pointFor(
       kind ===
       (stage === "mage"
         ? "mage"
-        : stage === "guard-fight"
-          ? "lava"
-          : "overlord"),
+        : stage === "entrance-fight"
+          ? "shadow"
+          : stage === "guard-fight"
+            ? "lava"
+            : "overlord"),
   );
   if (!target) return undefined;
   const options = [

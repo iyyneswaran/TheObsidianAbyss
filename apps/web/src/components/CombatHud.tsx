@@ -1,4 +1,9 @@
-import { abilitySlots, loadouts, type RunResult } from "@obsidian/game-core";
+import {
+  abilitySlots,
+  equippedAbilities,
+  type RunResult,
+} from "@obsidian/game-core";
+import { Link } from "react-router-dom";
 import { wizards } from "@obsidian/game-assets";
 import type { PartySnapshot } from "../multiplayer/party";
 
@@ -60,6 +65,7 @@ export function CombatHud({
   const local = session.local;
   if (!member || !local) return null;
   const { boss } = session;
+  const abilities = equippedAbilities(member.wizard, local.equipment);
   const dead = member.life === "DEAD";
   const options = session.members.filter(
     ({ life, connection }) => life === "ALIVE" && connection === "CONNECTED",
@@ -149,7 +155,7 @@ export function CombatHud({
               data-testid="ability-bar"
             >
               {abilitySlots.map((slot, i) => {
-                const ability = loadouts[member.wizard].abilities[slot];
+                const ability = abilities[slot];
                 const remaining = (local.cooldowns[slot] ?? 0) / 10;
                 const depleted = ability.mana > local.mp;
                 return (
@@ -221,9 +227,11 @@ export function CombatHud({
 
 export function RunSummary({
   result,
+  settlement,
   onReturn,
 }: {
   result: RunResult;
+  settlement: string;
   onReturn(): void;
 }) {
   const win = result.outcome === "VICTORY";
@@ -267,6 +275,24 @@ export function RunSummary({
       <button className="action" onClick={onReturn}>
         Return to Private Teams
       </button>
+      {settlement && (
+        <p
+          className="mt-3 text-sm text-slate-200"
+          data-testid="settlement"
+          data-status={settlement}
+        >
+          {settlement === "SETTLED" ? (
+            <>
+              Progression saved.{" "}
+              <Link className="text-gold underline" to="/profile">
+                Open profile
+              </Link>
+            </>
+          ) : (
+            "Saving dungeon progression…"
+          )}
+        </p>
+      )}
     </section>
   );
 }

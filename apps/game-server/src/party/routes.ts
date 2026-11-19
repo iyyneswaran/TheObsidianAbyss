@@ -1,4 +1,5 @@
 import { createEndpoint, createRouter, matchMaker } from "@colyseus/core";
+import { resolveProfile } from "@obsidian/progression";
 import { COOP_ROOM, partyRequestSchema } from "@obsidian/shared/coop";
 import {
   createRequestLimit,
@@ -7,6 +8,7 @@ import {
 } from "@obsidian/shared/guest";
 import type { CoopDungeonRoom } from "../rooms/CoopDungeonRoom.js";
 import { PartyError, type PartyDirectory } from "./directory.js";
+import type { GameProgression } from "./progression.js";
 
 type Guests = ReturnType<typeof createGuestSessions>;
 const maxRooms = 64;
@@ -45,6 +47,7 @@ export function partyRouter(
   directory: PartyDirectory,
   guests: Guests,
   webOrigin: string,
+  progression?: GameProgression,
 ) {
   const allowGuest = createRequestLimit(16, 60_000, 4096);
   const allowTotal = createRequestLimit(360, 60_000, 1);
@@ -77,6 +80,7 @@ export function partyRouter(
             409,
           );
         directory.connecting.add(guestId);
+        let profileLock: string | undefined;
         try {
           const request = partyRequestSchema.safeParse(
             await readPartyBody(ctx.request),
@@ -84,6 +88,18 @@ export function partyRouter(
           if (!request.success)
             throw new PartyError(400, "Invalid team code or wizard selection.");
           const data = request.data;
+          const cookie = headers.get("cookie");
+          const profile = progression
+            ? await resolveProfile(
+                progression.db,
+                cookie,
+                /(?:^|;\s*)obsidian_account=/.test(cookie ?? "")
+                  ? undefined
+                  : guestId,
+              )
+            : null;
+          if (progression && !profile)
+            throw new PartyError(401, "Sign in again to enter a team.");
           if (data.action === "reconnect") {
             const room = directory.rooms.get(data.code);
             if (!room)
@@ -91,7 +107,7 @@ export function partyRouter(
                 404,
                 "Team not found or the recovery window ended.",
               );
-            return json(await room.reserveReconnect(guestId));
+            return json(await room.reserveReconnect(guestId, profile?.id));
           }
           const existing = [...directory.rooms.values()].some((room) =>
             room.hasGuest(guestId),
@@ -101,6 +117,21 @@ export function partyRouter(
               409,
               "You already have a team seat. Reconnect using its code.",
             );
+          if (profile) {
+            const key = "profile:" + profile.id;
+            if (
+              directory.connecting.has(key) ||
+              [...directory.rooms.values()].some((room) =>
+                room.hasProfile(profile.id),
+              )
+            )
+              throw new PartyError(
+                409,
+                "This profile already has a team seat.",
+              );
+            directory.connecting.add(key);
+            profileLock = key;
+          }
           if (data.action === "create") {
             if (directory.rooms.size + directory.creating >= maxRooms)
               throw new PartyError(503, "The team server is at capacity.");
@@ -110,14 +141,22 @@ export function partyRouter(
               const room = matchMaker.getLocalRoomById(
                 listing.roomId,
               ) as CoopDungeonRoom;
-              return json(await room.reserveGuest(guestId, data.wizard));
+              return json(
+                await room.reserveGuest(
+                  guestId,
+                  data.wizard,
+                  profile ?? undefined,
+                ),
+              );
             } finally {
               directory.creating--;
             }
           }
           const room = directory.rooms.get(data.code);
           if (!room) throw new PartyError(404, "Team not found.");
-          return json(await room.reserveGuest(guestId, data.wizard));
+          return json(
+            await room.reserveGuest(guestId, data.wizard, profile ?? undefined),
+          );
         } catch (error) {
           if (error instanceof PartyError)
             return json({ error: error.message }, error.status);
@@ -128,6 +167,7 @@ export function partyRouter(
           return json({ error: "The team is unavailable. Try again." }, 503);
         } finally {
           directory.connecting.delete(guestId);
+          if (profileLock) directory.connecting.delete(profileLock);
         }
       },
     ),

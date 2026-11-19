@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { combatEffects, type PixelFxAtlas } from "@obsidian/game-assets";
 import {
+  alternatives,
   center,
   enemyAppearances,
   loadouts,
@@ -45,8 +46,11 @@ export function preloadCombat(
 ) {
   const base = import.meta.env.BASE_URL;
   const ids = new Set(sharedEffects);
-  for (const wizard of classes)
+  for (const wizard of classes) {
     for (const { fx } of Object.values(loadouts[wizard].abilities)) ids.add(fx);
+    for (const item of alternatives)
+      if (item.wizard === wizard) ids.add(item.fx);
+  }
   for (const id of ids) {
     const asset = combatEffects.get(id)!;
     scene.load.aseprite(

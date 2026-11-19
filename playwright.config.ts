@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { defineConfig } from "@playwright/test";
+import { isolatedTestDatabase } from "./tests/fixtures/progression.js";
 import { localPorts } from "./packages/shared/src/index.js";
 
 const envFile = new URL(".env", import.meta.url);
@@ -15,6 +16,7 @@ process.env.COMBAT_FIXTURE_KEY ??= randomBytes(32).toString("hex");
 const webUrl = `http://localhost:${webPort}`;
 const apiUrl = `http://localhost:${apiPort}`;
 const coopEnv = {
+  DATABASE_URL: isolatedTestDatabase() ?? "",
   GUEST_SESSION_SECRET: randomBytes(32).toString("hex"),
   WEB_ORIGIN: webUrl,
 };
