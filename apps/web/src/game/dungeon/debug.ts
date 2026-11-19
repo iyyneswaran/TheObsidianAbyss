@@ -8,6 +8,7 @@ import {
   type WorldPoint,
 } from "@obsidian/game-core";
 import type { DungeonPlayer } from "../characters/player";
+import type { createOnlineActors } from "../characters/onlineActors";
 import type { createDungeonCamera } from "./camera";
 import type { DungeonDebugInfo } from "./preview";
 
@@ -68,6 +69,7 @@ export function setupDungeonDebug(
   publish: (info: DungeonDebugInfo | null) => void,
   wizard?: WizardClass,
   player?: DungeonPlayer,
+  online?: ReturnType<typeof createOnlineActors>,
 ) {
   let overlay: Phaser.GameObjects.Graphics | undefined;
   let footprint: Phaser.GameObjects.Rectangle | undefined;
@@ -92,7 +94,7 @@ export function setupDungeonDebug(
       enabled = !enabled;
       overlay ??= drawDungeonDebug(scene, map);
       overlay.setVisible(enabled);
-      if (player && !footprint) {
+      if ((player || online) && !footprint) {
         footprint = scene.add
           .rectangle(0, 0, playerFootprint.width, playerFootprint.height)
           .setStrokeStyle(1, 0xcdffef)
@@ -106,7 +108,8 @@ export function setupDungeonDebug(
   return (elapsed: number) => {
     if (!enabled) return;
     const transform = player?.transform;
-    if (transform) footprint?.setPosition(transform.x, transform.y);
+    const rendered = transform ?? online?.localPosition;
+    if (rendered) footprint?.setPosition(rendered.x, rendered.y);
     if (elapsed < nextSample) return;
 
     const center = view.state;
@@ -125,6 +128,7 @@ export function setupDungeonDebug(
       terrain: map.atWorld(point.x, point.y).terrain,
       room: roomAt(center),
       zones: zoneNames(point),
+      ...(online ? { online: online.sample() } : {}),
       ...(wizard && player && transform
         ? {
             player: {

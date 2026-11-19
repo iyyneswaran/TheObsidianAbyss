@@ -12,6 +12,7 @@ import {
   movePlayer,
   resolvePlayerSpawn,
   type DungeonMap,
+  type PlayerTransform,
   type WorldPoint,
 } from "@obsidian/game-core";
 
@@ -23,13 +24,12 @@ export function preloadWizard(scene: Phaser.Scene, wizard: WizardClass) {
   );
 }
 
-export function createPlayer(
+export function createWizardActor(
   scene: Phaser.Scene,
-  map: DungeonMap,
   wizard: WizardClass,
   depthAt: (y: number) => number,
+  initial: PlayerTransform,
 ) {
-  let transform = resolvePlayerSpawn(map);
   const texture = scene.textures.get(wizard.spriteKey);
   if (
     !scene.textures.exists(wizard.spriteKey) ||
@@ -45,6 +45,7 @@ export function createPlayer(
     for (const motion of ["idle", "walk"] as const) {
       const { frames, frameRate } = wizardAnimations[motion];
       const key = wizardAnimationKey(wizard, motion, direction);
+      if (scene.anims.exists(key)) continue;
       scene.anims.create({
         key,
         frameRate,
@@ -57,22 +58,24 @@ export function createPlayer(
       registered.push(key);
     }
   }
-  scene.events.once("shutdown", () => {
-    for (const key of registered) scene.anims.remove(key);
-  });
+  if (registered.length) {
+    scene.events.once("shutdown", () => {
+      for (const key of registered) scene.anims.remove(key);
+    });
+  }
 
   const sprite = scene.add
-    .sprite(transform.x, transform.y, wizard.spriteKey)
+    .sprite(initial.x, initial.y, wizard.spriteKey)
     .setOrigin(
       wizardSheet.feetX / wizardSheet.frameWidth,
       wizardSheet.feetY / wizardSheet.frameHeight,
     )
-    .setDepth(depthAt(transform.y));
+    .setDepth(depthAt(initial.y));
   const shadow = scene.add
-    .ellipse(transform.x, transform.y + 1, 20, 6, 0x100d1b, 0.65)
+    .ellipse(initial.x, initial.y + 1, 20, 6, 0x100d1b, 0.65)
     .setDepth(35);
 
-  function render() {
+  function render(transform: PlayerTransform, protectedSeat = false) {
     const { x, y, facing, moving } = transform;
     const motion: WizardMotion = moving ? "walk" : "idle";
     const key = wizardAnimationKey(wizard, motion, facing);
@@ -80,14 +83,17 @@ export function createPlayer(
     sprite.setPosition(x, y);
     const depth = depthAt(y);
     if (depth !== sprite.depth) sprite.setDepth(depth);
+    sprite.setAlpha(protectedSeat ? 0.58 : 1);
     shadow.setPosition(x, y + 1);
   }
 
-  render();
+  render(initial);
 
   return {
-    get transform() {
-      return transform;
+    render,
+    destroy() {
+      sprite.destroy();
+      shadow.destroy();
     },
     get animation() {
       return sprite.anims.currentAnim?.key ?? "";
@@ -95,9 +101,30 @@ export function createPlayer(
     get frame() {
       return sprite.frame.name;
     },
+  };
+}
+
+export function createPlayer(
+  scene: Phaser.Scene,
+  map: DungeonMap,
+  wizard: WizardClass,
+  depthAt: (y: number) => number,
+) {
+  let transform = resolvePlayerSpawn(map);
+  const actor = createWizardActor(scene, wizard, depthAt, transform);
+  return {
+    get transform() {
+      return transform;
+    },
+    get animation() {
+      return actor.animation;
+    },
+    get frame() {
+      return actor.frame;
+    },
     step(input: WorldPoint, elapsed: number) {
       transform = movePlayer(map, transform, input, elapsed);
-      render();
+      actor.render(transform);
     },
   };
 }

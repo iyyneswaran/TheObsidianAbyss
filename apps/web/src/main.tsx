@@ -5,17 +5,23 @@ import { CharacterSelection } from "./pages/CharacterSelection";
 import { Dungeon, PlayDungeon } from "./pages/Dungeon";
 import { Landing } from "./pages/Landing";
 import { Playground } from "./pages/Playground";
+import { Party } from "./pages/Party";
+import { OnlineDungeon } from "./pages/OnlineDungeon";
+import { PartyRouteLifecycle } from "./multiplayer/useParty";
 import "./styles/main.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
+      <PartyRouteLifecycle />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/playground" element={<Playground />} />
         <Route path="/dungeon" element={<Dungeon />} />
         <Route path="/dungeon/play" element={<PlayDungeon />} />
         <Route path="/characters" element={<CharacterSelection />} />
+        <Route path="/party" element={<Party />} />
+        <Route path="/dungeon/online" element={<OnlineDungeon />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

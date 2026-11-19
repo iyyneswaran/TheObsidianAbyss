@@ -93,7 +93,19 @@ export function CharacterSelection() {
           </label>
         ))}
       </fieldset>
-      <footer className="mt-5 flex justify-end border-t border-gold/30 pt-4">
+      <footer className="mt-5 flex flex-wrap justify-end gap-2 border-t border-gold/30 pt-4">
+        <button
+          className="action"
+          disabled={!selected}
+          onClick={() => {
+            if (selected)
+              navigate("/party", {
+                state: { wizardClassId: selected.id } satisfies WizardSelection,
+              });
+          }}
+        >
+          Play Online
+        </button>
         <button className="action" disabled={!selected} onClick={enterDungeon}>
           Enter Dungeon
         </button>

@@ -8,10 +8,25 @@
       "types": "./src/index.ts",
       "development": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./guest": {
+      "types": "./src/guest.ts",
+      "development": "./src/guest.ts",
+      "default": "./dist/guest.js"
+    },
+    "./coop": {
+      "types": "./src/coop.ts",
+      "development": "./src/coop.ts",
+      "default": "./dist/coop.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@obsidian/game-assets": "workspace:*",
+    "@colyseus/schema": "4.0.31",
+    "zod": "4.6.7"
   }
 }

@@ -29,3 +29,13 @@ See [Dungeon map](DUNGEON_MAP.md) for the room graph and Tiled editing workflow.
 Open [character selection](http://localhost:5173/characters), choose a wizard, and select **Enter Dungeon**. The playable route uses **WASD** or **arrow keys** to move, the **mouse wheel** to zoom, and **F3** for the development movement panel. **Change wizard** returns to selection.
 
 The Milestone 2 Playwright tests save captures in the ignored `artifacts/milestone-2/` folder. If your local servers are already running, the suite can use alternate ports. From a separate PowerShell session set `$env:WEB_PORT='5179'`, `$env:GAME_PORT='2573'`, and `$env:VITE_GAME_SERVER_URL='ws://localhost:2573'`, then run `pnpm test`.
+
+## Private co-op
+
+Run `pnpm dev` and open [Private teams](http://localhost:5173/party), or select a wizard and choose **Play Online**. Choose **Create Team**, or enter a team code and select **Join Team**. The leader starts the dungeon. A different tab in the same browser profile shares the guest cookie. Separate browser profiles or private contexts represent different guests.
+
+`pnpm dev` prepares an ignored random local key before starting the apps. When running the services separately for the first time, run `node tools/prepare-guest.mjs` from the root first. For a built production smoke run, configure the same 64-hex-character `GUEST_SESSION_SECRET` for the API and game processes. Use one host across the web, API, and game server so the host-only cookie reaches both services. The configured `WEB_ORIGIN` must match the web URL exactly. HTTPS origins use a Secure guest cookie.
+
+The default recovery window is 120 seconds and the brief cooldown applies after more than six drops per minute. Configure these through `PARTY_RECOVERY_SECONDS` and `PARTY_DROP_LIMIT`. A refresh on the online route attempts recovery automatically. On a new tab in the same profile, enter the old code and choose **Reconnect**. **Leave Session** is an explicit forfeiture of the seat.
+
+The Playwright suite starts the API, game server, and web app on loopback and uses its own temporary key. To avoid running servers, override all three test ports with `$env:WEB_PORT='5179'`, `$env:GAME_PORT='2573'`, and `$env:API_PORT='3011'` before `pnpm test`. Co-op browser captures are under `artifacts/milestone-3/`.

@@ -10,6 +10,9 @@ export function Landing() {
         <Link className="action" to="/characters">
           Select Wizard
         </Link>
+        <Link className="action" to="/party">
+          Private teams
+        </Link>
         <Link className="action" to="/dungeon">
           Explore dungeon
         </Link>

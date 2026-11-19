@@ -1,5 +1,9 @@
 import Phaser from "phaser";
-import type { WizardClass } from "@obsidian/game-assets";
+import { wizards, type WizardClass } from "@obsidian/game-assets";
+import {
+  createOnlineActors,
+  type OnlineConnection,
+} from "../characters/onlineActors";
 import { createPlayer, preloadWizard } from "../characters/player";
 import { sortDungeonOccluders } from "../dungeon/actorDepth";
 import { dungeonPreviewMap } from "../dungeon/assets";
@@ -21,6 +25,7 @@ export class DungeonScene extends Phaser.Scene {
   constructor(
     private readonly eventsOut: DungeonPreviewEvents,
     private readonly wizard?: WizardClass,
+    private readonly online?: OnlineConnection,
   ) {
     super("dungeon");
   }
@@ -28,6 +33,12 @@ export class DungeonScene extends Phaser.Scene {
   preload() {
     preloadDungeon(this, dungeonPreviewMap);
     if (this.wizard) preloadWizard(this, this.wizard);
+    if (this.online) {
+      const classes = new Set(
+        this.online.getSnapshot().members.map(({ wizard }) => wizard),
+      );
+      for (const id of classes) preloadWizard(this, wizards[id]);
+    }
   }
 
   create() {
@@ -59,14 +70,19 @@ export class DungeonScene extends Phaser.Scene {
     if (!rooms[0])
       throw new Error("Dungeon needs at least one room focus point.");
 
-    const player = this.wizard
-      ? createPlayer(
-          this,
-          data,
-          this.wizard,
-          sortDungeonOccluders(this, tilemap, layers),
-        )
-      : undefined;
+    const depthAt =
+      this.wizard || this.online
+        ? sortDungeonOccluders(this, tilemap, layers)
+        : undefined;
+    const player =
+      this.wizard && depthAt
+        ? createPlayer(this, data, this.wizard, depthAt)
+        : undefined;
+    const online =
+      this.online && depthAt
+        ? createOnlineActors(this, data, depthAt, this.online)
+        : undefined;
+    online?.step(0, 0, 0);
     const camera = this.cameras.main.setBounds(
       0,
       0,
@@ -76,8 +92,8 @@ export class DungeonScene extends Phaser.Scene {
     const view = createDungeonCamera(
       camera,
       { width: data.worldWidth, height: data.worldHeight },
-      player?.transform ?? rooms[0],
-      player ? 1 : 0.5,
+      player?.transform ?? online?.localPosition ?? rooms[0],
+      player || online ? 1 : 0.5,
     );
     const keyboard = this.input.keyboard;
     if (!keyboard)
@@ -93,7 +109,7 @@ export class DungeonScene extends Phaser.Scene {
       down: keyboard.addKey(DOWN),
       right: keyboard.addKey(RIGHT),
     };
-    if (!player) keyboard.addKey(R).on("down", () => view.reset());
+    if (!player && !online) keyboard.addKey(R).on("down", () => view.reset());
 
     const zoom = (
       _pointer: Phaser.Input.Pointer,
@@ -121,6 +137,7 @@ export class DungeonScene extends Phaser.Scene {
           this.eventsOut.onDebug,
           this.wizard,
           player,
+          online,
         )
       : undefined;
 
@@ -151,6 +168,9 @@ export class DungeonScene extends Phaser.Scene {
       if (player) {
         player.step({ x, y }, step);
         view.follow(player.transform, step);
+      } else if (online) {
+        online.step(x, y, step);
+        if (online.localPosition) view.follow(online.localPosition, step);
       } else {
         view.pan(x, y, step);
       }
@@ -161,11 +181,12 @@ export class DungeonScene extends Phaser.Scene {
     };
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.online?.sendMovement(0, 0, performance.now());
       this.input.off("wheel", zoom);
       delete this.step;
     });
 
-    if (player) this.eventsOut.onReady({ mode: "play" });
+    if (player || online) this.eventsOut.onReady({ mode: "play" });
     else {
       this.eventsOut.onReady({
         mode: "inspect",

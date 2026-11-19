@@ -13,6 +13,7 @@ export interface DungeonDebugInfo {
   terrain: string;
   room: string;
   zones: string;
+  online?: OnlineDebugInfo;
   player?: PlayerTransform & {
     classId: WizardClassId;
     speed: number;
@@ -36,3 +37,4 @@ export interface DungeonPreviewEvents {
 }
 import type { WizardClassId } from "@obsidian/game-assets";
 import type { PlayerTransform } from "@obsidian/game-core";
+import type { OnlineDebugInfo } from "../characters/onlineActors";

@@ -18,17 +18,25 @@ The preview camera keeps a bounded world center and discrete zoom, then applies 
 
 Phaser captures directional input. `@obsidian/game-core` normalizes it and advances a 14 × 10 pixel footprint through the canonical terrain grid with axis sweeps. The animation controller reads facing and displacement from the resulting transform. A bounded follow camera interpolates toward the feet. The wizard, walls, and obstacles sort by their floor anchor, with lights and overhead details on their existing layers.
 
-A future authoritative Colyseus room can accept bounded directional input and sequence numbers, advance the same portable movement code against the canonical map, and send validated transforms to clients. The current play route runs locally. See [Milestone 2](milestone-2.md) for the implementation and evidence.
+The solo play route runs locally. The online route uses the authoritative simulation described below. See [Milestone 2](milestone-2.md) for the original local movement and rendering.
+
+## Cooperative sessions
+
+Fastify issues a signed temporary guest cookie. Colyseus checks the configured web origin and cookie on both the private seat endpoint and each cooperative WebSocket upgrade. A team code locates a private room, and only the signed guest who owns a disconnected seat can recover it. Colyseus rotates its native reconnect token after the upgrade. The browser saves just the team code in session storage.
+
+The private `coop_dungeon` room owns membership, roster phase, leader authority, classes, spawn, and transforms. It advances the canonical movement implementation at 30 Hz and publishes Schema patches at 15 Hz. Each client sends sequenced directions. Phaser draws and interpolates server snapshots, and the camera follows only the local participant. The solo route, inspector, and co-op route share dungeon loading, animation, layers, and sprite code.
+
+Unexpected drops reserve a protected seat until the recovery window expires. Voluntary exit releases the seat. Once a run starts, the roster closes to new guests. Room state and reservations are in memory.
 
 ## Services
 
-The Colyseus game server listens on loopback and exposes the temporary `test_room` through its WebSocket transport. The browser uses the official Colyseus SDK to join and leave. In future milestones, rooms will validate player inputs and run the authoritative simulation. Phaser will render the resulting snapshots and events.
+The Colyseus server exposes the temporary `test_room` and the private `coop_dungeon` room through its WebSocket transport. The browser uses the official Colyseus SDK for seat consumption and reconnection.
 
 The Fastify API starts independently. Its health route returns a typed service response, and Zod validates the service configuration. CORS authorizes the configured frontend origin. PostgreSQL and Prisma are planned for later persistence work.
 
 ## Packages
 
-- `@obsidian/shared` owns service and room identifiers, local port defaults, and the health contract. Network message contracts can be added when the first gameplay messages are defined.
+- `@obsidian/shared` owns service identifiers, local ports, health, and the cooperative wire schemas. Its separate Node-only guest entry point handles credential signing and verification.
 - `@obsidian/game-core` owns the logical viewport, Tiled map reader, and engine-independent terrain and zone queries.
 - `@obsidian/game-assets` owns effect paths, metadata types, and playback configuration.
 

@@ -11,3 +11,5 @@ playwright-report/
 test-results/
 .pixelfx-export/
 /artifacts/milestone-2/
+/artifacts/milestone-3/
+/.guest-key
