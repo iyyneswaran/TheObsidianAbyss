@@ -1,7 +1,10 @@
 import Phaser from "phaser";
+import type { WizardClass } from "@obsidian/game-assets";
+import { createPlayer, preloadWizard } from "../characters/player";
+import { sortDungeonOccluders } from "../dungeon/actorDepth";
 import { dungeonPreviewMap } from "../dungeon/assets";
 import { createDungeonCamera } from "../dungeon/camera";
-import { drawDungeonDebug } from "../dungeon/debug";
+import { setupDungeonDebug } from "../dungeon/debug";
 import { createEnvironment } from "../dungeon/environment";
 import {
   dungeonLightKey,
@@ -10,38 +13,32 @@ import {
 } from "../dungeon/loadDungeon";
 import type { DungeonPreviewEvents } from "../dungeon/preview";
 
-const keyCodes = Phaser.Input.Keyboard.KeyCodes;
-const inputs = {
-  w: keyCodes.W,
-  a: keyCodes.A,
-  s: keyCodes.S,
-  d: keyCodes.D,
-  up: keyCodes.UP,
-  left: keyCodes.LEFT,
-  down: keyCodes.DOWN,
-  right: keyCodes.RIGHT,
-};
+const { W, A, S, D, UP, LEFT, DOWN, RIGHT, R } = Phaser.Input.Keyboard.KeyCodes;
 
 export class DungeonScene extends Phaser.Scene {
   private step?: (delta: number) => void;
 
-  constructor(private readonly eventsOut: DungeonPreviewEvents) {
+  constructor(
+    private readonly eventsOut: DungeonPreviewEvents,
+    private readonly wizard?: WizardClass,
+  ) {
     super("dungeon");
   }
 
   preload() {
     preloadDungeon(this, dungeonPreviewMap);
+    if (this.wizard) preloadWizard(this, this.wizard);
   }
 
   create() {
     try {
-      this.startPreview();
+      this.startDungeon();
     } catch (error) {
       this.eventsOut.onError(error);
     }
   }
 
-  private startPreview() {
+  private startDungeon() {
     const { data, tilemap, layers, tilesets } = loadDungeon(
       this,
       dungeonPreviewMap,
@@ -61,6 +58,15 @@ export class DungeonScene extends Phaser.Scene {
     });
     if (!rooms[0])
       throw new Error("Dungeon needs at least one room focus point.");
+
+    const player = this.wizard
+      ? createPlayer(
+          this,
+          data,
+          this.wizard,
+          sortDungeonOccluders(this, tilemap, layers),
+        )
+      : undefined;
     const camera = this.cameras.main.setBounds(
       0,
       0,
@@ -70,20 +76,25 @@ export class DungeonScene extends Phaser.Scene {
     const view = createDungeonCamera(
       camera,
       { width: data.worldWidth, height: data.worldHeight },
-      rooms[0],
+      player?.transform ?? rooms[0],
+      player ? 1 : 0.5,
     );
     const keyboard = this.input.keyboard;
     if (!keyboard)
       throw new Error("Dungeon keyboard controls could not initialize.");
 
-    const keys = Object.fromEntries(
-      Object.entries(inputs).map(([name, code]) => [
-        name,
-        keyboard.addKey(code),
-      ]),
-    ) as Record<keyof typeof inputs, Phaser.Input.Keyboard.Key>;
+    const keys = {
+      w: keyboard.addKey(W),
+      a: keyboard.addKey(A),
+      s: keyboard.addKey(S),
+      d: keyboard.addKey(D),
+      up: keyboard.addKey(UP),
+      left: keyboard.addKey(LEFT),
+      down: keyboard.addKey(DOWN),
+      right: keyboard.addKey(RIGHT),
+    };
+    if (!player) keyboard.addKey(R).on("down", () => view.reset());
 
-    const reset = () => view.reset();
     const zoom = (
       _pointer: Phaser.Input.Pointer,
       _objects: unknown,
@@ -92,7 +103,6 @@ export class DungeonScene extends Phaser.Scene {
     ) => {
       if (dy) view.zoomBy(dy < 0 ? 1 : -1);
     };
-    keyboard.addKey(keyCodes.R).on("down", reset);
     this.input.on("wheel", zoom);
 
     const animate = createEnvironment(
@@ -102,49 +112,17 @@ export class DungeonScene extends Phaser.Scene {
       tilesets,
       dungeonLightKey(dungeonPreviewMap),
     );
-
-    let publishDebug: ((elapsed: number) => void) | undefined;
-    if (import.meta.env.DEV) {
-      let overlay: Phaser.GameObjects.Graphics | undefined;
-      let enabled = false;
-      let nextSample = 0;
-      const point = new Phaser.Math.Vector2();
-      const toggle = () => {
-        enabled = !enabled;
-        overlay ??= drawDungeonDebug(this, data);
-        overlay.setVisible(enabled);
-        nextSample = 0;
-        if (!enabled) this.eventsOut.onDebug(null);
-      };
-      keyboard.addKey(keyCodes.F3).on("down", toggle);
-
-      publishDebug = (elapsed) => {
-        if (!enabled || elapsed < nextSample) return;
-        const { x, y, zoom } = view.state;
-        const hovered = this.game.canvas.matches(":hover");
-        const pointer = this.input.activePointer;
-        if (hovered) camera.getWorldPoint(pointer.x, pointer.y, point);
-        else point.set(x, y);
-        const tile = data.worldToTile(point.x, point.y);
-        const room = data.zonesAt(x, y).find(({ kind }) => kind === "room");
-        this.eventsOut.onDebug({
-          cameraX: Math.round(x),
-          cameraY: Math.round(y),
-          zoom,
-          worldWidth: data.worldWidth,
-          worldHeight: data.worldHeight,
-          tile: hovered ? `${tile.x}, ${tile.y}` : "—",
-          terrain: data.atWorld(point.x, point.y).terrain,
-          room: room?.id ?? "—",
-          zones:
-            data
-              .zonesAt(point.x, point.y)
-              .map(({ id }) => id)
-              .join(", ") || "—",
-        });
-        nextSample = elapsed + 100;
-      };
-    }
+    const debug = import.meta.env.DEV
+      ? setupDungeonDebug(
+          this,
+          data,
+          camera,
+          view,
+          this.eventsOut.onDebug,
+          this.wizard,
+          player,
+        )
+      : undefined;
 
     let lastX = NaN;
     let lastY = NaN;
@@ -163,17 +141,23 @@ export class DungeonScene extends Phaser.Scene {
 
     let elapsed = 0;
     this.step = (delta) => {
-      const dx =
+      const x =
         Number(keys.d.isDown || keys.right.isDown) -
         Number(keys.a.isDown || keys.left.isDown);
-      const dy =
+      const y =
         Number(keys.s.isDown || keys.down.isDown) -
         Number(keys.w.isDown || keys.up.isDown);
-      view.pan(dx, dy, Math.min(delta, 50));
+      const step = Math.min(delta, 50);
+      if (player) {
+        player.step({ x, y }, step);
+        view.follow(player.transform, step);
+      } else {
+        view.pan(x, y, step);
+      }
       positionCamera();
       elapsed += delta;
       animate(elapsed);
-      publishDebug?.(elapsed);
+      debug?.(elapsed);
     };
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -181,13 +165,17 @@ export class DungeonScene extends Phaser.Scene {
       delete this.step;
     });
 
-    this.eventsOut.onReady({
-      rooms: rooms.map(({ id, title }) => ({ id, title })),
-      focusRoom(id) {
-        const room = rooms.find((entry) => entry.id === id);
-        if (room) view.focus(room);
-      },
-    });
+    if (player) this.eventsOut.onReady({ mode: "play" });
+    else {
+      this.eventsOut.onReady({
+        mode: "inspect",
+        rooms: rooms.map(({ id, title }) => ({ id, title })),
+        focusRoom(id) {
+          const room = rooms.find((entry) => entry.id === id);
+          if (room) view.focus(room);
+        },
+      });
+    }
   }
 
   override update(_time: number, delta: number) {

@@ -7,6 +7,9 @@ export function Landing() {
         The Obsidian Abyss
       </h1>
       <nav aria-label="Game previews" className="flex flex-wrap gap-3">
+        <Link className="action" to="/characters">
+          Select Wizard
+        </Link>
         <Link className="action" to="/dungeon">
           Explore dungeon
         </Link>

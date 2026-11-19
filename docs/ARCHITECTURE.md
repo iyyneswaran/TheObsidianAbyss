@@ -12,6 +12,14 @@ The [canonical map](DUNGEON_MAP.md) stores gameplay semantics and named regions 
 
 The preview camera keeps a bounded world center and discrete zoom, then applies that state to the pixel-rounded Phaser camera. Development builds can show collision and region boundaries with F3. Debug geometry is built once on demand, and the React readout samples at most ten times per second. The dungeon route renders locally without opening a Colyseus connection.
 
+## Wizard play
+
+`/characters` reads the typed wizard catalog in `@obsidian/game-assets` and hands the chosen ID to `/dungeon/play` through browser history state. The playable mode reuses the inspector's Phaser stage, scene, tilemap, and environment animation. Phaser loads the selected sheet and owns the local character transform. React receives a read-only development sample when F3 is enabled.
+
+Phaser captures directional input. `@obsidian/game-core` normalizes it and advances a 14 × 10 pixel footprint through the canonical terrain grid with axis sweeps. The animation controller reads facing and displacement from the resulting transform. A bounded follow camera interpolates toward the feet. The wizard, walls, and obstacles sort by their floor anchor, with lights and overhead details on their existing layers.
+
+A future authoritative Colyseus room can accept bounded directional input and sequence numbers, advance the same portable movement code against the canonical map, and send validated transforms to clients. The current play route runs locally. See [Milestone 2](milestone-2.md) for the implementation and evidence.
+
 ## Services
 
 The Colyseus game server listens on loopback and exposes the temporary `test_room` through its WebSocket transport. The browser uses the official Colyseus SDK to join and leave. In future milestones, rooms will validate player inputs and run the authoritative simulation. Phaser will render the resulting snapshots and events.

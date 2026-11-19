@@ -1,5 +1,11 @@
 # Asset registry
 
+## Wizard sprites
+
+The seven original provisional wizard sheets live in `apps/web/public/assets/characters/`. The local concept sheets guided the palettes, hats, trims, emblems, and staff shapes. Every sheet has 32 × 48 frames laid out in five columns and four direction rows. The feet anchor is 16, 44 pixels from the frame origin. The first two columns are idle, and the remaining three are distinct walk poses.
+
+The typed manifest is `packages/game-assets/src/wizards.ts`. Regenerate the sheets from the repository root with `pnpm exec tsx tools/characters/generate.mjs`. To replace the provisional art, retain the layout or update the manifest's frame layout, animation columns, and foot anchor together.
+
 ## Dungeon
 
 The dungeon uses original pixel art drawn by `tools/dungeon/tiles.mjs` and assembled with the map generator. The concept image guided layout and palette. The playable scene uses an embedded 32 × 32 atlas at `apps/web/public/assets/dungeon/obsidian-stone.png`. The Tiled map `obsidian-dungeon.tmj` references the atlas and records the lava, torch, and crystal frame sequences. The nearby `light.png` supplies a reusable radial falloff for all three light sources.

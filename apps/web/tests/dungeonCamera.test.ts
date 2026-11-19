@@ -45,3 +45,18 @@ it("limits zoom steps and clamps the visible viewport to every map edge", () => 
   camera.pan(1, 1, 30_000);
   expect(camera.state).toEqual({ x: 2400, y: 1958, zoom: 2 });
 });
+
+it("follows smoothly with equivalent elapsed time and clamps its follow target", () => {
+  const camera = createDungeonCamera(view, world, home, 1);
+  const target = { x: 900, y: 720 };
+  camera.follow(target, 160);
+  const once = camera.state;
+  expect(once.x).toBeGreaterThan(home.x);
+  expect(once.x).toBeLessThan(target.x);
+  camera.reset();
+  for (let i = 0; i < 10; i++) camera.follow(target, 16);
+  expect(camera.state.x).toBeCloseTo(once.x);
+  expect(camera.state.y).toBeCloseTo(once.y);
+  camera.follow({ x: -15, y: -10 }, 10_000);
+  expect(camera.state).toEqual({ x: 320, y: 180, zoom: 1 });
+});

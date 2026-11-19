@@ -39,3 +39,5 @@ export const effects = {
 } as const satisfies Record<string, EffectAsset>;
 
 export type EffectId = keyof typeof effects;
+
+export * from "./wizards.js";

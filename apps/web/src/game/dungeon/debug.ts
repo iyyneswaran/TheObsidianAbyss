@@ -1,5 +1,15 @@
-import type Phaser from "phaser";
-import type { DungeonMap } from "@obsidian/game-core";
+import Phaser from "phaser";
+import type { WizardClass } from "@obsidian/game-assets";
+import {
+  playerFootprint,
+  playerSpeed,
+  playerTerrain,
+  type DungeonMap,
+  type WorldPoint,
+} from "@obsidian/game-core";
+import type { DungeonPlayer } from "../characters/player";
+import type { createDungeonCamera } from "./camera";
+import type { DungeonDebugInfo } from "./preview";
 
 const options = {
   room: 0xa59dda,
@@ -13,7 +23,7 @@ const options = {
   room_connection: 0x60a38e,
 } as Record<string, number>;
 
-export function drawDungeonDebug(scene: Phaser.Scene, map: DungeonMap) {
+function drawDungeonDebug(scene: Phaser.Scene, map: DungeonMap) {
   const graphics = scene.add.graphics().setDepth(100);
   const { tileWidth, tileHeight } = map;
   for (let y = 0; y < map.height; y++) {
@@ -48,4 +58,89 @@ export function drawDungeonDebug(scene: Phaser.Scene, map: DungeonMap) {
       .strokeRect(zone.x, zone.y, zone.width, zone.height);
   }
   return graphics;
+}
+
+export function setupDungeonDebug(
+  scene: Phaser.Scene,
+  map: DungeonMap,
+  camera: Phaser.Cameras.Scene2D.Camera,
+  view: ReturnType<typeof createDungeonCamera>,
+  publish: (info: DungeonDebugInfo | null) => void,
+  wizard?: WizardClass,
+  player?: DungeonPlayer,
+) {
+  let overlay: Phaser.GameObjects.Graphics | undefined;
+  let footprint: Phaser.GameObjects.Rectangle | undefined;
+  let enabled = false;
+  let nextSample = 0;
+  const point = new Phaser.Math.Vector2();
+  const zoneNames = ({ x, y }: WorldPoint) =>
+    map
+      .zonesAt(x, y)
+      .map(({ id }) => id)
+      .join(", ") || "—";
+  const roomAt = ({ x, y }: WorldPoint) =>
+    map.zonesAt(x, y).find(({ kind }) => kind === "room")?.id ?? "—";
+  const tileAt = ({ x, y }: WorldPoint) => {
+    const tile = map.worldToTile(x, y);
+    return `${tile.x}, ${tile.y}`;
+  };
+
+  scene.input.keyboard
+    ?.addKey(Phaser.Input.Keyboard.KeyCodes.F3)
+    .on("down", () => {
+      enabled = !enabled;
+      overlay ??= drawDungeonDebug(scene, map);
+      overlay.setVisible(enabled);
+      if (player && !footprint) {
+        footprint = scene.add
+          .rectangle(0, 0, playerFootprint.width, playerFootprint.height)
+          .setStrokeStyle(1, 0xcdffef)
+          .setDepth(101);
+      }
+      footprint?.setVisible(enabled);
+      nextSample = 0;
+      if (!enabled) publish(null);
+    });
+
+  return (elapsed: number) => {
+    if (!enabled) return;
+    const transform = player?.transform;
+    if (transform) footprint?.setPosition(transform.x, transform.y);
+    if (elapsed < nextSample) return;
+
+    const center = view.state;
+    const hovered = scene.game.canvas.matches(":hover");
+    const pointer = scene.input.activePointer;
+    if (hovered) camera.getWorldPoint(pointer.x, pointer.y, point);
+    else point.set(center.x, center.y);
+
+    publish({
+      cameraX: Math.round(center.x),
+      cameraY: Math.round(center.y),
+      zoom: center.zoom,
+      worldWidth: map.worldWidth,
+      worldHeight: map.worldHeight,
+      tile: hovered ? tileAt(point) : "—",
+      terrain: map.atWorld(point.x, point.y).terrain,
+      room: roomAt(center),
+      zones: zoneNames(point),
+      ...(wizard && player && transform
+        ? {
+            player: {
+              ...transform,
+              classId: wizard.id,
+              speed: playerSpeed,
+              tile: tileAt(transform),
+              room: roomAt(transform),
+              zones: zoneNames(transform),
+              hazardous: playerTerrain(map, transform).hazardous,
+              animation: player.animation,
+              frame: player.frame,
+            },
+          }
+        : {}),
+    });
+    nextSample = elapsed + 100;
+  };
 }

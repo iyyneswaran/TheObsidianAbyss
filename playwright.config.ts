@@ -13,6 +13,8 @@ const channel = process.env.PLAYWRIGHT_CHANNEL;
 
 export default defineConfig({
   testDir: "./tests/browser",
+  // Keep cold Vite and software WebGL startup within the browser assertions' time budget.
+  workers: 2,
   use: { baseURL: webUrl, ...(channel ? { channel } : {}) },
   webServer: [
     {

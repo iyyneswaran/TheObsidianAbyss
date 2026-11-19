@@ -23,3 +23,9 @@ Start the web workspace and open [the dungeon](http://localhost:5173/dungeon). U
 See [Dungeon map](DUNGEON_MAP.md) for the room graph and Tiled editing workflow. To rebuild the baseline map and original art, run `node tools/dungeon/generate.mjs` from the root. The generator overwrites the committed map and atlas, so carry hand-edited map changes into the generator before regenerating if both workflows are in use.
 
 `pnpm test:unit` validates camera bounds, map metadata, and route connectivity. `pnpm test:browser` tests the actual Phaser view, camera controls, animated regions, and navigation to the original playground. Dungeon screenshots are captured under `test-results/`.
+
+## Wizard movement
+
+Open [character selection](http://localhost:5173/characters), choose a wizard, and select **Enter Dungeon**. The playable route uses **WASD** or **arrow keys** to move, the **mouse wheel** to zoom, and **F3** for the development movement panel. **Change wizard** returns to selection.
+
+The Milestone 2 Playwright tests save captures in the ignored `artifacts/milestone-2/` folder. If your local servers are already running, the suite can use alternate ports. From a separate PowerShell session set `$env:WEB_PORT='5179'`, `$env:GAME_PORT='2573'`, and `$env:VITE_GAME_SERVER_URL='ws://localhost:2573'`, then run `pnpm test`.

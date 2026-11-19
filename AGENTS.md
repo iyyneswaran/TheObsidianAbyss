@@ -5,3 +5,4 @@
 - Add deterministic gameplay simulations for movement, collisions, combat, AI, and multiplayer as each mechanic is introduced. Keep previous milestone tests passing.
 - Run formatting checks, typecheck, lint, production build, and the full automated suite. Fix failures and rerun the affected checks and full suite before committing a completed milestone.
 - Report actual pass and fail counts, coverage when measured, and anything that remains unverified. Commit a completed milestone only after its mandatory checks pass.
+- Create `docs/milestone-N.md` for each completed milestone. Record what shipped, actual automated test results, screenshots or other evidence, unresolved issues, and Git details.

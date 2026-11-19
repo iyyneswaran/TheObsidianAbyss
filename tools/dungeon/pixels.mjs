@@ -11,8 +11,10 @@ export function surface(width, height) {
 }
 
 export function painter(image, left = 0, top = 0, size = 32) {
+  const { width, height } =
+    typeof size === "number" ? { width: size, height: size } : size;
   function pixel(x, y, color, alpha = 255) {
-    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
     const index = ((top + y) * image.width + left + x) * 4;
     image.bytes[index] = color >> 16;
     image.bytes[index + 1] = color >> 8;
