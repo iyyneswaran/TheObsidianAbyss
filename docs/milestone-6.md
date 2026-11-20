@@ -173,7 +173,7 @@ The suite creates a disposable schema, applies migrations, seeds, validates, run
 
 ## Git
 
-Branch `main`. Implementation commit message `feat: implement milestone 6 full dungeon expansion`. The following commands identify the introducing commit and compare it to the published branch.
+Published [implementation commit 1155fa0](https://github.com/iyyneswaran/TheObsidianAbyss/commit/1155fa071627028936b06b6876143da008cc9135) to `origin/main`. The remote branch matched the full implementation hash after push and the working tree was clean. Implementation commit message `feat: implement milestone 6 full dungeon expansion`. The following commands identify the introducing commit and compare it to the published branch.
 
 ```powershell
 git log --diff-filter=A -1 --format=%H -- docs/milestone-6.md
