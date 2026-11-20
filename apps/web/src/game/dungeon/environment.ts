@@ -52,6 +52,11 @@ export function createEnvironment(
       .setAlpha(opacity);
   }
 
+  const sanctums = map.zones.filter(
+    (z) =>
+      z.kind === "world_zone" &&
+      (z.properties.index === 3 || z.properties.index === 4),
+  );
   const lights: {
     image: Phaser.GameObjects.Image;
     phase: number;
@@ -68,7 +73,21 @@ export function createEnvironment(
         const y = tile.pixelY + map.tileHeight / 2;
         if (emitter === "torch") {
           lights.push({
-            image: glow(x, y + 3, 0xff761f, 134, 0.58),
+            image: glow(
+              x,
+              y + 3,
+              sanctums.some(
+                (z) =>
+                  x >= z.x &&
+                  x < z.x + z.width &&
+                  y >= z.y &&
+                  y < z.y + z.height,
+              )
+                ? 0xb45bff
+                : 0xff761f,
+              134,
+              0.58,
+            ),
             phase: x + y,
             alpha: 0.58,
             amplitude: 0.13,

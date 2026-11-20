@@ -137,7 +137,9 @@ export function partyRouter(
               throw new PartyError(503, "The team server is at capacity.");
             directory.creating++;
             try {
-              const listing = await matchMaker.createRoom(COOP_ROOM, {});
+              const listing = await matchMaker.createRoom(COOP_ROOM, {
+                dungeon: data.dungeon ?? "classic",
+              });
               const room = matchMaker.getLocalRoomById(
                 listing.roomId,
               ) as CoopDungeonRoom;

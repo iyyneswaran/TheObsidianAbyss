@@ -46,9 +46,11 @@ const { server, directory } = createGameServer(true, {
 });
 
 const stages = [
+  "boss-party",
   "entrance-fight",
   "guard",
   "approach",
+  "bridge-entry",
   "bridge",
   "shrine",
   "arena-shrine",
@@ -67,6 +69,7 @@ function pointFor(
 ): WorldPoint | undefined {
   if (stage === "guard") return { x: 1808, y: 626 };
   if (stage === "approach") return { x: 1112, y: 1358 };
+  if (stage === "bridge-entry") return { x: 1968, y: 555 };
   if (stage === "bridge") return { x: 2049, y: 555 };
   if (stage === "shrine") return { x: 1239, y: 1426 };
   if (stage === "arena-shrine") return { x: 2123, y: 1674 };
@@ -84,18 +87,26 @@ function pointFor(
             : "overlord"),
   );
   if (!target) return undefined;
-  const options = [
-    { x: 42, y: 0 },
-    { x: -43, y: 0 },
-    { x: 0, y: 44 },
-    { x: 0, y: -47 },
-    { x: 37, y: 40 },
-    { x: -42, y: -37 },
-    { x: 83, y: 0 },
-    { x: -83, y: 0 },
-    { x: 0, y: 83 },
-    { x: 0, y: -83 },
-  ];
+  const options =
+    stage === "boss-party"
+      ? Array.from({ length: 24 }, (_, i) => {
+          const angle =
+            ((i + slot * 6 + Math.floor(run.time / 570)) * Math.PI) / 12;
+          const radius = slot === 3 ? 62 : slot === 0 ? 96 : 172;
+          return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
+        })
+      : [
+          { x: 42, y: 0 },
+          { x: -43, y: 0 },
+          { x: 0, y: 44 },
+          { x: 0, y: -47 },
+          { x: 37, y: 40 },
+          { x: -42, y: -37 },
+          { x: 83, y: 0 },
+          { x: -83, y: 0 },
+          { x: 0, y: 83 },
+          { x: 0, y: -83 },
+        ];
   const reachable = options
     .slice(slot)
     .concat(options.slice(0, slot))
@@ -103,7 +114,7 @@ function pointFor(
     .filter(
       (p) => safePoint(run.map, p) && clearSight(run.map, p, target.body),
     );
-  if (stage !== "boss") return reachable[0];
+  if (stage !== "boss" && stage !== "boss-party") return reachable[0];
   return (
     reachable.find((p) =>
       [...run.areas.values()].every((area) => {
@@ -141,11 +152,126 @@ const fixture = createServer((req, reply) => {
   const stage = stages.find((item) => item === url.searchParams.get("area"));
   const room = directory.rooms.get(url.searchParams.get("team") ?? "");
   const run = (room as unknown as { run?: CombatRun } | undefined)?.run;
+  if (run?.expedition) {
+    const world = run.expedition;
+    const action = url.searchParams.get("area") ?? "";
+    if (action === "inspect") {
+      reply.writeHead(200, { "content-type": "application/json" }).end(
+        JSON.stringify({
+          view: world.view(),
+          time: run.time,
+          tick: room!.state.tick,
+          phase: run.bossPhase,
+          mobs: [...run.monsters.values()]
+            .filter((m) => !m.lifetime)
+            .map((m) => ({ hp: m.hp, id: m.id, encounter: m.encounter })),
+          team: [...run.players.values()].map((p) => ({
+            slot: p.slot,
+            id: p.id,
+            hp: p.hp,
+            mp: p.mp,
+            x: p.body.x,
+            y: p.body.y,
+          })),
+        }),
+      );
+      return;
+    }
+    if (action === "advance") {
+      const ticks = Number(url.searchParams.get("ticks"));
+      if (!Number.isInteger(ticks) || ticks < 1 || ticks > 600) {
+        reply.writeHead(400).end();
+        return;
+      }
+      for (let i = 0; i < ticks && !run.ended; i++) run.step(1000 / 30);
+      reply.writeHead(200).end();
+      return;
+    }
+    if (run.ended) {
+      reply.writeHead(409).end();
+      return;
+    }
+    const marker = world.objects.find((z) => z.id === action);
+    const target = [...run.monsters.values()].find((m) => m.id === action);
+    if (marker || target) {
+      if (
+        marker &&
+        (world.objects.some(
+          (r) =>
+            r.properties.secret &&
+            (r.id === marker.id || r.id === marker.properties.room) &&
+            !world.secrets.has(r.id),
+        ) ||
+          ((marker.properties.room === "shadow-throne" ||
+            marker.id === "shadow-throne") &&
+            !run.encounters.bossStarted))
+      ) {
+        reply.writeHead(409).end();
+        return;
+      }
+      for (const p of run.players.values()) {
+        const slot = url.searchParams.get("slot");
+        if (
+          p.life !== "ALIVE" ||
+          p.protected ||
+          p.forfeited ||
+          (slot !== null && Number(slot) !== p.slot)
+        )
+          continue;
+        let point;
+        if (marker) {
+          const c = center(marker);
+          const dx = slot === null ? (p.slot % 2) * 16 : 0,
+            dy = slot === null ? Math.floor(p.slot / 2) * 12 : 0;
+          point = { x: c.x + dx, y: c.y + dy };
+          if (
+            marker.kind === "lava_hazard" ||
+            marker.kind === "flame_vent" ||
+            marker.kind === "arcane_trap"
+          )
+            point = c;
+          else if (!safePoint(run.map, point)) {
+            reply.writeHead(409).end();
+            return;
+          }
+        } else if (target) {
+          // Keep a clear firing lane while allowing the live AI to attack and telegraph normally.
+          const choices = Array.from({ length: 32 }, (_, i) => {
+            const a =
+              ((i + p.slot * 5 + Math.floor(run.time / 380)) * Math.PI) / 16;
+            return {
+              x: target.body.x + Math.cos(a) * 183,
+              y: target.body.y + Math.sin(a) * 183,
+            };
+          }).filter(
+            (q) => safePoint(run.map, q) && clearSight(run.map, q, target.body),
+          );
+          point =
+            choices.find((q) =>
+              [...run.areas.values()].every(
+                (a) =>
+                  !a.hostile ||
+                  Math.hypot(a.point.x - q.x, a.point.y - q.y) > a.radius + 12,
+              ),
+            ) ?? choices[0];
+        }
+        if (!point) {
+          reply.writeHead(409).end();
+          return;
+        }
+        Object.assign(p.body, bodyAt(point));
+      }
+      reply.writeHead(200).end();
+      return;
+    }
+    reply.writeHead(409).end();
+    return;
+  }
   if (!run || !stage || run.result) {
     reply.writeHead(409).end();
     return;
   }
-  const point = pointFor(run, stage);
+  const point = pointFor(run, stage!);
   if (!point) {
     reply.writeHead(409).end();
     return;
@@ -163,7 +289,11 @@ const fixture = createServer((req, reply) => {
     };
     Object.assign(
       player.body,
-      bodyAt(stage === "boss" ? pointFor(run, stage, player.slot)! : next),
+      bodyAt(
+        stage === "boss" || stage === "boss-party"
+          ? (pointFor(run, stage, player.slot) ?? next)
+          : next,
+      ),
     );
   }
   reply.writeHead(200, { "content-type": "application/json" }).end(

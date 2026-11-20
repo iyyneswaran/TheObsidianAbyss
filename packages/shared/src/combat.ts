@@ -4,10 +4,12 @@ import { z } from "zod";
 export const castSchema = z.strictObject({
   slot: z.enum(["BASIC", "SKILL_1", "SKILL_2", "SKILL_3", "ULTIMATE"]),
   sequence: z.number().int().min(1).max(0xffffffff),
-  x: z.number().finite().min(0).max(8192),
-  y: z.number().finite().min(0).max(8192),
+  x: z.number().finite().min(0).max(16384),
+  y: z.number().finite().min(0).max(16384),
 });
-export const interactSchema = z.strictObject({});
+export const interactSchema = z.strictObject({
+  revision: z.number().int().positive().optional(),
+});
 
 export class MonsterState extends Schema {
   declare kind: string;

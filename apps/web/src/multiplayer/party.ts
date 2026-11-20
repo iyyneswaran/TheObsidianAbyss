@@ -35,6 +35,7 @@ export interface PartySnapshot {
   castError: string;
   result: RunResult | null;
   settlement: string;
+  exploration: string;
   encounter: string;
   cleared: number;
   gateOpen: boolean;
@@ -60,6 +61,7 @@ const blank: PartySnapshot = {
   castError: "",
   result: null,
   settlement: "",
+  exploration: "",
   encounter: "",
   cleared: 0,
   gateOpen: false,
@@ -333,7 +335,12 @@ class PartyConnection {
       this.snapshot.connection === "connected" &&
       this.current?.connection.isOpen
     )
-      this.current.send("interact", {});
+      this.current.send(
+        "interact",
+        this.world?.exploration
+          ? { revision: JSON.parse(this.world.exploration).revision }
+          : {},
+      );
   }
 
   async leave(consented: boolean) {
@@ -371,6 +378,7 @@ class PartyConnection {
       phase: state.phase,
       leaderId: state.leaderId,
       members,
+      exploration: state.exploration ?? "",
       encounter: combat?.encounter ?? "",
       cleared: combat?.cleared ?? 0,
       gateOpen: combat?.gateOpen ?? false,

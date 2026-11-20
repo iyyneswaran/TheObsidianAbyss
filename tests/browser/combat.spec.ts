@@ -1,10 +1,4 @@
-import {
-  expect,
-  test,
-  type Browser,
-  type BrowserContext,
-  type Page,
-} from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import {
   verifyAccount,
@@ -14,8 +8,9 @@ import {
   progressionCapture,
 } from "../fixtures/progressionJourney.js";
 
+import { getTeam, close } from "../fixtures/team.js";
 const artifacts = "artifacts/milestone-4/";
-const viewport = { width: 1380, height: 980 };
+
 test.use({ actionTimeout: 12_000 });
 const canvas = (page: Page) =>
   page.getByTestId("online-stage").locator("canvas");
@@ -32,78 +27,6 @@ async function capture(page: Page, file: string) {
   await page.screenshot({ path: artifacts + file + ".png", fullPage: true });
 }
 
-async function getTeam(
-  browser: Browser,
-  baseURL: string,
-  wizards: string[],
-  prepare?: (page: Page, index: number) => Promise<void>,
-) {
-  const contexts = await Promise.all(
-    wizards.map(() => browser.newContext({ baseURL, viewport })),
-  );
-  const pages = await Promise.all(contexts.map((context) => context.newPage()));
-  const leader = pages[0]!;
-  const errors: string[] = [];
-  pages.forEach((page) =>
-    page.on("pageerror", (error) => errors.push(error.message)),
-  );
-  try {
-    if (prepare)
-      for (const [index, page] of pages.entries()) await prepare(page, index);
-    await leader.goto("/characters");
-    const wizard = leader.getByRole("radio", {
-      name: new RegExp("^" + wizards[0], "i"),
-    });
-    await wizard.focus();
-    await wizard.press("Space");
-    await leader.getByRole("button", { name: "Play Online" }).click();
-    await leader
-      .getByRole("button", { name: "Create Team", exact: true })
-      .click();
-    await expect(leader.getByTestId("team-code")).toHaveText(/^[A-Z0-9]{6}$/);
-    const code = await leader.getByTestId("team-code").innerText();
-    for (let i = 1; i < pages.length; i++) {
-      const page = pages[i]!;
-      await page.goto("/party");
-      await page.getByLabel("Your wizard").selectOption(wizards[i]!);
-      await page.getByLabel("Team code").fill(code);
-      await page.getByRole("button", { name: "Join Team" }).click();
-      await expect(page.getByTestId("team-code")).toHaveText(code);
-    }
-    await expect(leader.getByTestId("party-member")).toHaveCount(
-      wizards.length,
-    );
-    await leader.getByRole("button", { name: "Start Dungeon" }).click();
-    if (wizards.length < 4)
-      await leader.getByRole("button", { name: "Enter Dungeon" }).click();
-    const roomIds = new Set<string>();
-    for (const page of pages) {
-      await expect(page).toHaveURL(/\/dungeon\/online$/);
-      await page.bringToFront();
-      await expect(page.getByTestId("online-stage")).toHaveAttribute(
-        "data-ready",
-        "true",
-        { timeout: 25000 },
-      );
-      await expect(hp(page)).toBeVisible();
-      await page.keyboard.press("F3");
-      await expect(page.getByTestId("online-actor")).toHaveCount(
-        wizards.length,
-      );
-      roomIds.add(await page.getByTestId("debug-room-id").innerText());
-    }
-    expect(roomIds.size).toBe(1);
-    return { leader, pages, contexts, code, errors };
-  } catch (error) {
-    await close(contexts);
-    throw error;
-  }
-}
-
-async function close(contexts: BrowserContext[]) {
-  await Promise.all(contexts.map((context) => context.close()));
-}
-
 async function stage(page: Page, code: string, area: string, slot?: number) {
   const target = new URL(
     "http://127.0.0.1:" + process.env.COMBAT_FIXTURE_PORT + "/stage",
@@ -116,9 +39,14 @@ async function stage(page: Page, code: string, area: string, slot?: number) {
   });
   if (
     response.status() === 409 &&
-    ["boss", "mage", "guard-fight", "entrance-fight", "arena-shrine"].includes(
-      area,
-    )
+    [
+      "boss",
+      "boss-party",
+      "mage",
+      "guard-fight",
+      "entrance-fight",
+      "arena-shrine",
+    ].includes(area)
   )
     return [];
   expect(response.status()).toBe(200);
@@ -250,13 +178,17 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
 
   await killRegular(a, "lava", code, "guard");
   await killRegular(a, "mage", code, "approach");
-  await stage(a, code, "bridge", 0);
+  await stage(a, code, "bridge-entry", 0);
   await a.bringToFront();
-  await a.keyboard.down("d");
-  await wait(535);
-  await a.keyboard.up("d");
   const row = a.getByTestId("online-actor").filter({ hasText: "fire" });
-  await expect(row.getByTestId("actor-zones")).toContainText("bridge");
+  const zones = row.getByTestId("actor-zones");
+  await expect(zones).not.toContainText("bridge");
+  await a.keyboard.down("d");
+  try {
+    await expect(zones).toContainText("bridge");
+  } finally {
+    await a.keyboard.up("d");
+  }
   await stage(a, code, "bridge", 0);
   const safeHp = await number(hp(a), "value");
   await a.keyboard.down("w");
@@ -297,7 +229,7 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
         await hud.getAttribute("data-phase", { timeout: 400 }).catch(() => "4"),
       );
       if (visiblePhase >= phase) break;
-      const team = await stage(a, code, "boss");
+      const team = await stage(a, code, "boss-party");
       if (!team.length) break;
       for (const [index, keys] of [
         [3, ["q", "f", "r"]],
@@ -319,7 +251,8 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
           continue;
         if (!(await aim(page, target))) break;
         for (const key of keys) await page.keyboard.press(key);
-        await fire(page);
+        await page.mouse.down();
+        await page.mouse.up();
       }
     }
     if (phase < 4) {
@@ -331,7 +264,7 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
       await capture(a, "boss-phase-" + phase);
       if (phase === 2) {
         // Keep a living target in range while the boss's next summoning turn runs.
-        await stage(a, code, "boss");
+        await stage(a, code, "boss-party");
         for (const appearance of [
           "shadow-guard",
           "soul-drainer",

@@ -27,6 +27,7 @@ import { PartyError, type PartyDirectory } from "../party/directory.js";
 import {
   acceptInput,
   emptyInput,
+  partySpawns,
   simulatePlayer,
   stepMs,
   type InputState,
@@ -37,6 +38,8 @@ const dropWindowMs = 60_000;
 
 export interface CoopRoomOptions {
   directory: PartyDirectory;
+  dungeon?: "classic" | "expedition";
+  expeditionMap?: DungeonMap;
   map: DungeonMap;
   spawns: PlayerTransform[];
   recoverySeconds: number;
@@ -75,6 +78,14 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
 
   override async onCreate(options: CoopRoomOptions) {
     this.options = options;
+    if (options.dungeon === "expedition" && options.expeditionMap) {
+      this.state.dungeon = "expedition";
+      this.options = {
+        ...options,
+        map: options.expeditionMap,
+        spawns: partySpawns(options.expeditionMap),
+      };
+    }
     this.state.code = options.directory.register(this);
     await this.setPrivate(true);
     this.seatReservationTimeout = seatTimeout;
@@ -117,9 +128,16 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
         !interactSchema.safeParse(message).success
       )
         return;
-      if (!this.run?.interact(member.playerId))
+      if (
+        !this.run?.interact(
+          member.playerId,
+          interactSchema.parse(message).revision,
+        )
+      )
         client.send("cast_rejected", {
-          message: "Clear the dungeon and approach the shadow gate.",
+          message: this.run?.expedition
+            ? "Approach a marked mechanism or clear the remaining objectives."
+            : "Clear the dungeon and approach the shadow gate.",
         });
     });
     this.onMessage("*", (client) =>

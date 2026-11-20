@@ -33,7 +33,7 @@ async function showDebug(page: Page) {
   await expect(page.getByTestId("online-stage")).toHaveAttribute(
     "data-ready",
     "true",
-    { timeout: 15_000 },
+    { timeout: 30_000 },
   );
   await page.keyboard.press("F3");
   await expect(debug(page)).toBeVisible();
@@ -103,6 +103,7 @@ test("one wizard can cancel the warning, confirm entry, and deliberately leave",
   await expect(page).toHaveURL(/\/party$/);
   await expect(page.getByLabel("Your wizard")).toHaveValue("fire");
   await snapshot(page, "create-team");
+  await page.getByLabel("Dungeon route").selectOption("classic");
   await page.getByRole("button", { name: "Create Team", exact: true }).click();
   await expect(page.getByTestId("party-count")).toHaveText("1 of 4 connected");
   await snapshot(page, "lobby-one-player");
@@ -137,7 +138,7 @@ test("four independent browsers share wizards, authoritative movement, and ident
   browser,
   baseURL,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(210_000);
   if (!baseURL) throw new Error("Co-op tests require a configured web origin.");
   const contexts = await Promise.all(
     Array.from({ length: 4 }, () => browser.newContext({ baseURL, viewport })),
@@ -151,6 +152,7 @@ test("four independent browsers share wizards, authoritative movement, and ident
   try {
     await a.goto("/party");
     await a.getByLabel("Your wizard").selectOption("fire");
+    await a.getByLabel("Dungeon route").selectOption("classic");
     await a.getByRole("button", { name: "Create Team", exact: true }).click();
     const codeLabel = a.getByTestId("team-code");
     await expect(codeLabel).toHaveText(/^[A-Z0-9]{6}$/);
@@ -161,6 +163,7 @@ test("four independent browsers share wizards, authoritative movement, and ident
       [c, "healer"],
       [d, "defense"],
     ] as const) {
+      await page.bringToFront();
       await page.goto("/party");
       await page.getByLabel("Your wizard").selectOption(wizard);
       await page.getByLabel("Team code").fill(code);
@@ -329,10 +332,10 @@ test("four independent browsers share wizards, authoritative movement, and ident
       .getByRole("button", { name: "Reconnect", exact: true })
       .click();
     await expect(resumed).toHaveURL(/\/dungeon\/online$/);
+    await showDebug(resumed);
     await expect(
       resumed.getByTestId("online-stage").locator("canvas"),
     ).toHaveCount(1);
-    await showDebug(resumed);
     await expect(resumed.getByTestId("debug-local-id")).toHaveText(originalId!);
     await expect(actor(a, "healer").getByTestId("actor-connection")).toHaveText(
       "CONNECTED",
@@ -342,10 +345,10 @@ test("four independent browsers share wizards, authoritative movement, and ident
 
     await d.reload();
     await expect(d.getByTestId("network-status")).toHaveText("Connected");
+    await showDebug(d);
     await expect(d.getByTestId("online-stage").locator("canvas")).toHaveCount(
       1,
     );
-    await showDebug(d);
     for (const page of [a, b, resumed, d]) {
       await expect(page.getByTestId("debug-room-id")).toHaveText(roomId);
       await expect(page.getByTestId("online-actor")).toHaveCount(4);

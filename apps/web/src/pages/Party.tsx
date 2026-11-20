@@ -15,6 +15,9 @@ export function Party() {
     readWizardSelection(website.state),
   );
   const [code, setCode] = useState(() => party.rememberedCode);
+  const [dungeon, setDungeon] = useState<"classic" | "expedition">(
+    "expedition",
+  );
   const [confirm, setConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const busy =
@@ -168,12 +171,31 @@ export function Party() {
               <h2 className="mb-4 font-serif text-2xl">
                 Create a private team
               </h2>
+              <label className="mb-4 grid gap-1 text-sm">
+                Dungeon route
+                <select
+                  className="rounded border border-gold/40 bg-abyss p-2"
+                  value={dungeon}
+                  onChange={(e) =>
+                    setDungeon(
+                      e.target.value === "classic" ? "classic" : "expedition",
+                    )
+                  }
+                >
+                  <option value="expedition">Five-zone expedition</option>
+                  <option value="classic">Classic dungeon</option>
+                </select>
+              </label>
               <button
                 className="action"
                 disabled={!wizard || busy}
                 onClick={() => {
                   if (wizard)
-                    void party.connect({ action: "create", wizard: wizard.id });
+                    void party.connect({
+                      action: "create",
+                      wizard: wizard.id,
+                      dungeon,
+                    });
                 }}
               >
                 Create Team

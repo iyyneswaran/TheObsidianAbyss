@@ -70,3 +70,7 @@ Run `pnpm dev` and open [Private teams](http://localhost:5173/party), or select 
 The default recovery window is 120 seconds and the brief cooldown applies after more than six drops per minute. Configure these through `PARTY_RECOVERY_SECONDS` and `PARTY_DROP_LIMIT`. A refresh on the online route attempts recovery automatically. On a new tab in the same profile, enter the old code and choose **Reconnect**. **Leave Session** is an explicit forfeiture of the seat.
 
 The Playwright suite starts the API, game server, and web app on loopback and uses its own temporary key. To avoid running servers, override all three test ports with `$env:WEB_PORT='5179'`, `$env:GAME_PORT='2573'`, and `$env:API_PORT='3011'` before `pnpm test`. Co-op browser captures are under `artifacts/milestone-3/`.
+
+## Five-zone expedition
+
+New private teams default to the five-zone expedition. Select **Classic dungeon** for the original co-op arena. Press G near a mechanism or passage and M for the expanded expedition map. Use `pnpm exec vitest run packages/game-core/tests/expedition.test.ts` for connectivity and deterministic walkthroughs. The release suite also exercises the real four-browser route. See [Milestone 6](milestone-6.md) for the Windows database and release commands.

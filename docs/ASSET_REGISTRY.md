@@ -63,3 +63,7 @@ node tools/export-effects/export.mjs '..\pixelfx\pixelfx' ice/frost-nova
 ```
 
 The wrapper calls the local exporter in a temporary directory and imports the PNG, JSON, and attribution files. For a new effect, review the atlas and license, then register the asset ID, paths, repeat behavior, and layer in `packages/game-assets/src/index.ts`. Run the asset tests and verify playback in the browser. The game serves the imported files directly.
+
+## Five-zone expedition
+
+The five expedition sections and packed runtime map reuse the original Obsidian dungeon tile atlas, lighting mask, seven wizard sheets, shadow army sprites and existing effect licenses. The new geometry, floor patterns, passages and trap overlays were authored in this repository. The Shadow Throne includes the original Eclipse arena tiles and boss anchors. See `tools/dungeon/expedition.mjs` for source placement and `apps/web/public/assets/dungeon/` for the editable Tiled JSON.

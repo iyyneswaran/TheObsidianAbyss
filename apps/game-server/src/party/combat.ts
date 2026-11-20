@@ -47,6 +47,7 @@ export function publishCombat(
     for (const slot of abilitySlots)
       entry.cooldowns.set(slot, Math.ceil(player.cooldowns[slot] / 100));
   }
+  if (run.expedition) state.exploration = run.expedition.snapshot();
   const snapshot = state.combat;
   snapshot.encounter = run.encounters.current;
   snapshot.cleared = run.encounters.cleared;

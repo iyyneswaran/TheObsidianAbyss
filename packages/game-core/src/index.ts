@@ -2,5 +2,6 @@
 export const gameViewport = { width: 640, height: 360 } as const;
 
 export * from "./dungeon.js";
+export * from "./expedition.js";
 export * from "./movement.js";
 export * from "./combat/index.js";

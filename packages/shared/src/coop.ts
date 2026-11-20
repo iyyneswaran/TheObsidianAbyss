@@ -23,7 +23,11 @@ export const wizardClassSchema = z.enum(
   Object.keys(wizards) as [WizardClassId, ...WizardClassId[]],
 );
 export const partyRequestSchema = z.discriminatedUnion("action", [
-  z.strictObject({ action: z.literal("create"), wizard: wizardClassSchema }),
+  z.strictObject({
+    action: z.literal("create"),
+    wizard: wizardClassSchema,
+    dungeon: z.enum(["expedition", "classic"]).optional(),
+  }),
   z.strictObject({
     action: z.literal("join"),
     code: teamCodeSchema,
@@ -116,6 +120,8 @@ defineTypes(CoopPlayer, {
 });
 
 export class CoopState extends Schema {
+  declare dungeon: string;
+  declare exploration: string;
   declare code: string;
   declare leaderId: string;
   declare phase: PartyPhase;
@@ -125,6 +131,8 @@ export class CoopState extends Schema {
 
   constructor() {
     super();
+    this.dungeon = "classic";
+    this.exploration = "";
     this.code = "";
     this.leaderId = "";
     this.phase = "LOBBY";
@@ -135,6 +143,8 @@ export class CoopState extends Schema {
 }
 
 defineTypes(CoopState, {
+  dungeon: "string",
+  exploration: "string",
   code: "string",
   leaderId: "string",
   phase: "string",

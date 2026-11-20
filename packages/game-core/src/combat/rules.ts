@@ -57,6 +57,7 @@ export interface CombatPlayer extends Fighter {
   abilities: Readonly<Record<AbilitySlot, Ability>>;
 }
 export interface Enemy extends Fighter {
+  elite?: string;
   kind: EnemyKind;
   appearance: EnemyAppearance;
   home: WorldPoint;
@@ -136,8 +137,10 @@ export type ProgressMetric =
   | "slow"
   | "push"
   | "run"
+  | "discovery"
   | "victory";
 export interface CombatProgress {
+  source?: string;
   playerId: string;
   wizard: CombatClass;
   metric: ProgressMetric;

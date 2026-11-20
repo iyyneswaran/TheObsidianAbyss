@@ -25,11 +25,13 @@ export interface CoopConfig {
   progression?: GameProgression;
 }
 
-export function loadCanonicalMap(combat = false) {
+export function loadCanonicalMap(combat: boolean | "expedition" = false) {
   const file = new URL(
-    combat
-      ? "../../web/public/assets/dungeon/obsidian-combat.tmj"
-      : "../../web/public/assets/dungeon/obsidian-dungeon.tmj",
+    combat === "expedition"
+      ? "../../web/public/assets/dungeon/expedition.tmj"
+      : combat
+        ? "../../web/public/assets/dungeon/obsidian-combat.tmj"
+        : "../../web/public/assets/dungeon/obsidian-dungeon.tmj",
     import.meta.url,
   );
   return readDungeonMap(
@@ -99,6 +101,7 @@ export function createGameServer(gracefullyShutdown = true, coop?: CoopConfig) {
     server.define(COOP_ROOM, CoopDungeonRoom, {
       directory,
       map,
+      expeditionMap: loadCanonicalMap("expedition"),
       spawns: partySpawns(map),
       recoverySeconds: coop.recoverySeconds,
       dropLimit: coop.dropLimit,

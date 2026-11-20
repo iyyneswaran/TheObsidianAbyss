@@ -3,6 +3,7 @@ import { playerFacing, type WorldPoint } from "../movement.js";
 import {
   combatBalance,
   enemies,
+  enemyAppearances,
   guardAppearances,
   type EnemyAppearance,
   type EnemyKind,
@@ -38,6 +39,7 @@ export interface HostileAttack {
 }
 
 interface Battlefield {
+  expedition?: { zone: DungeonZone; secrets: ReadonlySet<string> };
   map: DungeonMap;
   players: Map<string, CombatPlayer>;
   monsters: Map<string, Enemy>;
@@ -57,6 +59,7 @@ interface Battlefield {
 interface Encounter {
   zone: DungeonZone;
   actors: DungeonZone[];
+  spawned: number;
   state: "waiting" | "fighting" | "clear";
 }
 
@@ -133,6 +136,7 @@ export class Encounters {
             actor.kind === "combat_spawn" &&
             actor.properties.encounter === zone.id,
         ),
+        spawned: 0,
         state: "waiting",
       }));
     const gate = map.zones.find((zone) => zone.kind === "boss_gate");
@@ -140,7 +144,7 @@ export class Encounters {
     const arenaEntry = map.zones
       .filter((zone) => zone.kind === "arena_entry")
       .map(center);
-    if (!gate || !boss || arenaEntry.length !== 4 || this.regions.length !== 3)
+    if (!gate || !boss || arenaEntry.length !== 4 || !this.regions.length)
       throw new Error("Missing online combat map metadata.");
     this.gate = gate;
     this.bossSpawn = center(boss);
@@ -166,16 +170,25 @@ export class Encounters {
   }
 
   get cleared() {
-    return this.regions.filter(({ state }) => state === "clear").length;
+    return this.regions.filter(
+      (r) => !r.zone.properties.optional && r.state === "clear",
+    ).length;
   }
   get gateOpen() {
-    return this.cleared === this.regions.length;
+    return this.regions.every(
+      (r) => r.zone.properties.optional || r.state === "clear",
+    );
   }
   get current() {
     if (this.bossStarted) return "Shadow Overlord";
     return (
       this.regions
-        .find(({ state }) => state === "fighting")
+        .find(
+          ({ state, zone }) =>
+            state === "fighting" &&
+            (!this.field.expedition ||
+              zone.properties.zone === this.field.expedition.zone.id),
+        )
         ?.zone.properties.title?.toString() ?? "Dungeon approach"
     );
   }
@@ -190,11 +203,11 @@ export class Encounters {
       !clearSight(this.field.map, player.body, center(this.gate))
     )
       return false;
+    if (!this.field.summon("overlord", this.bossSpawn, "boss")) return false;
     this.bossStarted = true;
     for (const member of this.field.players.values()) {
       if (eligible(member)) this.arrive(member);
     }
-    this.field.summon("overlord", this.bossSpawn, "boss");
     return true;
   }
 
@@ -205,6 +218,8 @@ export class Encounters {
   step(ms: number) {
     const { players, monsters } = this.field;
     for (const region of this.regions) {
+      const section = this.field.expedition?.zone.id;
+      if (section && region.zone.properties.zone !== section) continue;
       if (
         region.state === "waiting" &&
         [...players.values()].some(
@@ -212,15 +227,59 @@ export class Encounters {
         )
       ) {
         region.state = "fighting";
-        for (const actor of region.actors)
-          this.field.summon(
-            actor.properties.enemy as EnemyKind,
-            center(actor),
-            region.zone.id,
-          );
       }
       if (
         region.state === "fighting" &&
+        region.spawned < region.actors.length
+      ) {
+        for (const actor of region.actors.slice(region.spawned)) {
+          let point = center(actor);
+          if (region.zone.properties.zone) {
+            const free = (p: WorldPoint) =>
+              safePoint(this.field.map, p) &&
+              ![...players.values(), ...monsters.values()].some(
+                (a) => a.life === "ALIVE" && distance(a.body, p) < 26,
+              ) &&
+              !this.field.map
+                .zonesAt(p.x, p.y)
+                .some((z) => z.kind === "mana_restoration_zone");
+            const found = [
+              [0, 0],
+              [32, 0],
+              [-32, 0],
+              [0, 32],
+              [0, -32],
+              [64, 0],
+              [-64, 0],
+              [0, 64],
+              [0, -64],
+            ]
+              .map(([dx, dy]) => ({ x: point.x + dx!, y: point.y + dy! }))
+              .find(free);
+            if (!found) break;
+            point = found;
+          }
+          const appearance = enemyAppearances.find(
+            (a) => a === actor.properties.appearance,
+          );
+          const mob = this.field.summon(
+            actor.properties.enemy as EnemyKind,
+            point,
+            region.zone.id,
+            0,
+            appearance,
+          );
+          if (!mob) break;
+          if (actor.properties.elite) {
+            mob.elite = String(actor.properties.elite);
+            mob.hp = mob.maxHp = mob.kind === "lava" ? 264 : 216;
+          }
+          region.spawned++;
+        }
+      }
+      if (
+        region.state === "fighting" &&
+        region.spawned === region.actors.length &&
         ![...monsters.values()].some(
           (mob) =>
             mob.encounter === region.zone.id &&
@@ -246,7 +305,15 @@ export class Encounters {
   private update(mob: Enemy, ms: number) {
     const { field } = this;
     const { map, players } = field;
-    const spec = enemies[mob.kind];
+    const base = enemies[mob.kind];
+    const spec = mob.elite
+      ? {
+          ...base,
+          damage: base.damage + 5,
+          windupMs: base.windupMs + 180,
+          recoveryMs: base.recoveryMs - 300,
+        }
+      : base;
     const canSee = (p: CombatPlayer) =>
       eligible(p) &&
       distance(p.body, mob.body) <= spec.detection &&

@@ -131,7 +131,11 @@ it("runs two isolated teams, enforces authority, and restores an owned seat on a
     await expect(startError).resolves.toContain("leader");
     expect(room.state.phase).toBe("LOBBY");
 
-    const other = await join(stranger, { action: "create", wizard: "wind" });
+    const other = await join(stranger, {
+      action: "create",
+      wizard: "wind",
+      dungeon: "expedition",
+    });
     expect(other.reservation.code).not.toBe(code);
     other.room.send("start", { confirmIncomplete: false });
     await pause(180);
@@ -160,6 +164,23 @@ it("runs two isolated teams, enforces authority, and restores an owned seat on a
         .status,
     ).toBe(403);
 
+    await expect
+      .poll(() => other.room.state.exploration)
+      .toContain("ruined-gateway");
+    const chart = JSON.parse(other.room.state.exploration);
+    other.room.send("interact", {
+      revision: chart.revision,
+      destination: "shadow-throne",
+    });
+    other.room.send("interact", { revision: chart.revision - 1 });
+    await pause(125);
+    expect(JSON.parse(other.room.state.exploration)).toMatchObject({
+      zone: "forsaken-entrance",
+      revision: chart.revision,
+      secrets: 0,
+      open: false,
+    });
+    expect(room.state.exploration).toBe("");
     const player = () => room.state.players.get(playerId)!;
     const start = { x: player().x, y: player().y };
     const privatePeer = other.room.state.players.get(

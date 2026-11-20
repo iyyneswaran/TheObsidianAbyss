@@ -10,9 +10,14 @@ import {
   preloadCombat,
 } from "../combat/presentation";
 import { sortDungeonOccluders } from "../dungeon/actorDepth";
-import { dungeonCombatMap, dungeonPreviewMap } from "../dungeon/assets";
+import {
+  dungeonCombatMap,
+  dungeonPreviewMap,
+  expeditionMap,
+} from "../dungeon/assets";
 import { createDungeonCamera } from "../dungeon/camera";
 import { setupDungeonDebug } from "../dungeon/debug";
+import { expeditionMarkers } from "../dungeon/expeditionMarkers";
 import { createEnvironment } from "../dungeon/environment";
 import {
   dungeonLightKey,
@@ -35,7 +40,14 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   preload() {
-    preloadDungeon(this, this.online ? dungeonCombatMap : dungeonPreviewMap);
+    preloadDungeon(
+      this,
+      this.online?.world?.dungeon === "expedition"
+        ? expeditionMap
+        : this.online
+          ? dungeonCombatMap
+          : dungeonPreviewMap,
+    );
     if (this.wizard) preloadWizard(this, this.wizard);
     if (this.online) {
       const classes = new Set(
@@ -55,7 +67,12 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private startDungeon() {
-    const asset = this.online ? dungeonCombatMap : dungeonPreviewMap;
+    const asset =
+      this.online?.world?.dungeon === "expedition"
+        ? expeditionMap
+        : this.online
+          ? dungeonCombatMap
+          : dungeonPreviewMap;
     const { data, tilemap, layers, tilesets } = loadDungeon(this, asset);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => tilemap.destroy());
 
@@ -75,7 +92,12 @@ export class DungeonScene extends Phaser.Scene {
 
     const depthAt =
       this.wizard || this.online
-        ? sortDungeonOccluders(this, tilemap, layers)
+        ? sortDungeonOccluders(
+            this,
+            tilemap,
+            layers,
+            data.zones.filter((z) => z.kind === "world_zone"),
+          )
         : undefined;
     const player =
       this.wizard && depthAt
@@ -163,6 +185,10 @@ export class DungeonScene extends Phaser.Scene {
         ? createCombatPresentation(this, data, this.online, depthAt)
         : undefined;
 
+    const updateMarkers =
+      this.online && asset === expeditionMap
+        ? expeditionMarkers(this, data, this.online)
+        : undefined;
     let elapsed = 0;
     this.step = (delta) => {
       const x =
@@ -177,7 +203,17 @@ export class DungeonScene extends Phaser.Scene {
         view.follow(player.transform, step);
       } else if (online) {
         online.step(x, y, step);
-        if (online.localPosition) view.follow(online.localPosition, step);
+        if (online.localPosition) {
+          if (
+            asset === expeditionMap &&
+            Math.hypot(
+              view.state.x - online.localPosition.x,
+              view.state.y - online.localPosition.y,
+            ) > 640
+          )
+            view.focus(online.localPosition);
+          else view.follow(online.localPosition, step);
+        }
       } else {
         view.pan(x, y, step);
       }
@@ -185,6 +221,22 @@ export class DungeonScene extends Phaser.Scene {
       combat?.step(step);
       elapsed += delta;
       animate(elapsed);
+      updateMarkers?.();
+      if (
+        import.meta.env.DEV &&
+        updateMarkers &&
+        Math.floor(elapsed / 1000) !== Math.floor((elapsed - delta) / 1000)
+      ) {
+        const canvas = this.game.canvas;
+        canvas.dataset.objects = String(this.children.length);
+        canvas.dataset.textures = String(this.textures.getTextureKeys().length);
+        canvas.dataset.listeners = String(
+          this.events
+            .eventNames()
+            .reduce((n, event) => n + this.events.listenerCount(event), 0),
+        );
+        canvas.dataset.fps = String(this.game.loop.actualFps.toFixed(1));
+      }
       const combatState = debug && this.online?.world?.combat;
       debug?.(
         elapsed,

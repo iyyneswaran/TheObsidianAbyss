@@ -35,6 +35,19 @@ export class RunProgression {
     if (!profileId) return;
     const time = Date.now();
     const key = `${event.playerId}:${Math.floor(time / dayMs)}:${event.metric}`;
+    if (event.source) {
+      const id = this.runId + ":" + event.playerId + ":" + event.source;
+      this.events.set(id, {
+        id,
+        runId: this.runId,
+        profileId,
+        time,
+        wizard: event.wizard,
+        metric: event.metric,
+        amount: 1,
+      });
+      return;
+    }
     const current = this.events.get(key);
     if (current) current.amount += event.amount;
     else

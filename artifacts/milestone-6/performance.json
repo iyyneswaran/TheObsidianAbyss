@@ -1,0 +1,87 @@
+[
+  {
+    "preloadResources": 57,
+    "preloadBytes": 7607220,
+    "longestAssetMs": 62,
+    "tickHz": 22.42894056847545,
+    "zone": "Forsaken Entrance",
+    "transitionMs": 376,
+    "metrics": {
+      "objects": "521",
+      "textures": "38",
+      "listeners": "53",
+      "fps": "53.5"
+    },
+    "heap": 74214424,
+    "receivedBytes": 23696,
+    "receivedFrames": 177
+  },
+  {
+    "preloadResources": 57,
+    "preloadBytes": 7607220,
+    "longestAssetMs": 62,
+    "tickHz": 22.54925231426537,
+    "zone": "Molten Passages",
+    "transitionMs": 305,
+    "metrics": {
+      "objects": "514",
+      "textures": "33",
+      "listeners": "53",
+      "fps": "52.4"
+    },
+    "heap": 89973640,
+    "receivedBytes": 96867,
+    "receivedFrames": 432
+  },
+  {
+    "preloadResources": 57,
+    "preloadBytes": 7607220,
+    "longestAssetMs": 62,
+    "tickHz": 22.75040215357342,
+    "zone": "Forgotten Crypt",
+    "transitionMs": 363,
+    "metrics": {
+      "objects": "616",
+      "textures": "41",
+      "listeners": "53",
+      "fps": "52.2"
+    },
+    "heap": 85151228,
+    "receivedBytes": 130872,
+    "receivedFrames": 659
+  },
+  {
+    "preloadResources": 57,
+    "preloadBytes": 7607220,
+    "longestAssetMs": 62,
+    "tickHz": 22.828937220422645,
+    "zone": "Corrupted Sanctum",
+    "transitionMs": 360,
+    "metrics": {
+      "objects": "613",
+      "textures": "38",
+      "listeners": "53",
+      "fps": "49.6"
+    },
+    "heap": 86487068,
+    "receivedBytes": 191434,
+    "receivedFrames": 854
+  },
+  {
+    "preloadResources": 57,
+    "preloadBytes": 7607220,
+    "longestAssetMs": 62,
+    "tickHz": 22.869965862159518,
+    "zone": "Throne of the Shadow Overlord",
+    "transitionMs": 317,
+    "metrics": {
+      "objects": "616",
+      "textures": "40",
+      "listeners": "53",
+      "fps": "50.2"
+    },
+    "heap": 70849460,
+    "receivedBytes": 201432,
+    "receivedFrames": 932
+  }
+]

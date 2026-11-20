@@ -4,6 +4,11 @@ export const dungeonPreviewMap = {
   light: "assets/dungeon/light.png",
 } as const;
 
+export const expeditionMap = {
+  ...dungeonPreviewMap,
+  key: "expedition",
+  path: "assets/dungeon/expedition.tmj",
+} as const;
 export const dungeonCombatMap = {
   ...dungeonPreviewMap,
   key: "obsidian-combat",

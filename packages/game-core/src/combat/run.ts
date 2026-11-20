@@ -1,3 +1,4 @@
+import { Expedition } from "../expedition.js";
 import type { DungeonMap } from "../dungeon.js";
 import {
   defaultEquipment,
@@ -80,6 +81,7 @@ export class CombatRun {
   readonly monsters = new Map<string, Enemy>();
   readonly shots = new Map<string, Shot>();
   readonly areas = new Map<string, Area>();
+  readonly expedition?: Expedition;
   readonly encounters: Encounters;
   readonly events: CombatEvent[] = [];
   bossPhase = 0;
@@ -96,6 +98,8 @@ export class CombatRun {
     private readonly onProgress?: (event: CombatProgress) => void,
   ) {
     this.encounters = new Encounters(this);
+    if (map.zones.some((z) => z.kind === "world_zone"))
+      this.expedition = new Expedition(this, map);
   }
 
   get ended() {
@@ -146,6 +150,7 @@ export class CombatRun {
     const player = this.players.get(id);
     if (!player) return;
     player.protected = value;
+    if (!value) this.expedition?.reconnect(player);
     if (value) this.cancel(id);
     else if (
       this.encounters.bossStarted &&
@@ -164,8 +169,22 @@ export class CombatRun {
     this.checkDefeat();
   }
 
-  interact(id: string) {
+  interact(id: string, revision?: number) {
     const player = this.players.get(id);
+    if (this.expedition)
+      return Boolean(
+        player &&
+        revision !== undefined &&
+        this.expedition.interact(player, revision, (member, source) =>
+          this.onProgress?.({
+            playerId: member.id,
+            wizard: member.wizard,
+            metric: "discovery",
+            amount: 1,
+            source,
+          }),
+        ),
+      );
     return Boolean(!this.ended && player && this.encounters.enter(player));
   }
 
@@ -372,6 +391,8 @@ export class CombatRun {
       if (eligible(player)) this.environment(player, ms);
     }
     for (const mob of this.monsters.values()) this.statusStep(mob, ms);
+    if (this.ended) return;
+    this.expedition?.step();
     if (this.ended) return;
     this.encounters.step(ms);
     for (const area of this.areas.values()) {

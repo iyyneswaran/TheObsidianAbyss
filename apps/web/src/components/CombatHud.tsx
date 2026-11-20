@@ -203,7 +203,9 @@ export function CombatHud({
           )}
         </div>
         <p className="mt-2 text-xs text-slate-300">
-          {session.encounter} · {session.cleared}/3 encounters cleared
+          {session.encounter} · {session.cleared}/
+          {session.exploration ? JSON.parse(session.exploration).total : 3}{" "}
+          encounters cleared
           {session.gateOpen && !boss ? " · Press G at the shadow gate" : ""}
           {local.statuses && (
             <span className="ml-2 text-[#d0bdff]" data-testid="local-status">

@@ -19,3 +19,7 @@ The engine-independent query reports safe walkability, solid collision, hazard, 
 Online runs load [obsidian-combat.tmj](../apps/web/public/assets/dungeon/obsidian-combat.tmj). The original three rooms and their geometry are preserved. The variant adds encounter and spawn zones, the Sanctuary gate, and the isolated arena with safe arrival slots and teleport anchors. Generate the variant with `node tools/dungeon/generate.mjs --combat`.
 
 Open the `.tmj` file directly. Use the embedded atlas, keep all tile layers aligned with the map origin, and save tile data as a JSON array rather than base64 or chunked data. Mark new terrain via the embedded tile's `terrain` and `blocksSight` properties. Keep zone names and numeric IDs unique and preserve IDs already used by code. To add a room, paint the room and its corridor, place a `room` rectangle with a title and world-pixel camera point, then extend the connectivity test.
+
+## Five-zone expedition
+
+The five-zone expedition uses the five section maps beside the classic maps. Floors, obstacles, warning footprints, combat regions, interactive mechanisms, concealed passages and destination slots are Tiled data. Edit individual section files in Tiled and run `node tools/dungeon/expedition.mjs --pack` to regenerate the shared runtime map. The seeded procedural source can also regenerate all five sections. The full catalog, adjacency and gate conditions appear in [the expedition report](milestone-6.md).

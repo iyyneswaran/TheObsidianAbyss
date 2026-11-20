@@ -77,6 +77,30 @@ describe.skipIf(!url)(
       }
     });
 
+    it("saves each party member's discovery once without completing a weekly run or changing wallets", async () => {
+      const profiles = await Promise.all([guest(), guest()]);
+      const time = Date.now(),
+        runId = randomUUID();
+      const events: QuestEvent[] = profiles.map((profileId) => ({
+        id: runId + ":" + profileId + ":ossuary",
+        profileId,
+        runId,
+        time,
+        metric: "discovery",
+        amount: 1,
+        wizard: "ice",
+      }));
+      await recordEvents(db(), events);
+      await recordEvents(db(), events);
+      expect(await db().processedGameEvent.count({ where: { runId } })).toBe(2);
+      for (const profile of profiles) {
+        const board = await getQuestBoard(db(), profile, time);
+        expect(board.daily.find((q) => q.key === "explore")?.progress).toBe(1);
+        expect(board.weekly.find((q) => q.key === "runs")?.progress).toBe(0);
+        expect(await wallet(db(), profile)).toEqual({ coins: 0, gems: 0 });
+      }
+    });
+
     it("keeps weekly rotations stable through Sunday and rotates the daily class through all seven wizards", () => {
       const monday = Date.parse("2026-11-16T00:00:00Z");
       const day = 86400000;

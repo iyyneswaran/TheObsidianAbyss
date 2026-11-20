@@ -53,7 +53,8 @@ async function recordProgress(tx: Transaction, event: QuestEvent) {
   if (!inserted.count) return;
   for (const quest of questsAt(event.time)) {
     if (
-      quest.metric !== event.metric ||
+      (quest.metric !== event.metric &&
+        !(quest.key === "explore" && event.metric === "discovery")) ||
       (quest.wizard && quest.wizard !== event.wizard)
     )
       continue;

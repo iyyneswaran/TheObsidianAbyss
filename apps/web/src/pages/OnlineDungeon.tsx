@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { ExpeditionMap } from "../components/ExpeditionMap";
 import { PartyConfirm } from "../components/PartyConfirm";
 import { CombatHud, RunSummary } from "../components/CombatHud";
 import { PartyRoster } from "../components/PartyRoster";
@@ -17,6 +18,7 @@ const labels = {
 };
 
 function OnlineStage() {
+  const { exploration } = useParty();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
   const [debug, setDebug] = useState<DungeonDebugInfo | null>(null);
@@ -57,7 +59,7 @@ function OnlineStage() {
           The dungeon could not load. Reopen this page to reconnect.
         </p>
       )}
-      <div className="mt-5 overflow-hidden rounded-xl border border-gold/40 bg-[#130e1c]">
+      <div className="relative mt-5 overflow-hidden rounded-xl border border-gold/40 bg-[#130e1c]">
         <div
           ref={parent}
           className="aspect-video w-full"
@@ -65,6 +67,7 @@ function OnlineStage() {
           data-ready={ready}
           aria-label="Online dungeon map"
         />
+        {exploration && <ExpeditionMap exploration={exploration} />}
         <p className="border-t border-gold/25 bg-panel px-4 py-3 text-sm text-slate-300">
           WASD or arrows to move · Left click to attack · Q / E / R / F to cast
           · G to interact · Scroll to zoom

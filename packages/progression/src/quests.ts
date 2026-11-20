@@ -58,7 +58,8 @@ const daily: Definition[] = [
   {
     key: "explore",
     title: "Dungeon Explorer",
-    detail: "Finish one qualifying dungeon run.",
+    detail:
+      "Finish a qualifying run, open an expedition passage, or discover a secret chamber.",
     metric: "run",
     target: 1,
     coins: 35,

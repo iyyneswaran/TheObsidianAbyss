@@ -46,3 +46,7 @@ Each private seat binds a signed guest ID to its verified profile. The room copi
 - `@obsidian/progression` owns Prisma migrations and the server-only identity, currency, equipment and quest services. The shared combat engine owns the fourteen alternate ability definitions.
 
 The workspace builds packages before dependent apps. Development uses source exports and production builds resolve compiled package exports. The small set of React controls lives in the web app.
+
+## Five-zone expedition
+
+The expedition packs five editable Tiled sections into one shared world-coordinate grid. Each Colyseus room owns its CombatRun and Expedition. Only an accepted proximity interaction can advance the section, open a secret or enter the throne. Current-room and discovery state is shared as a change-driven chart snapshot, while existing movement and combat continue through incremental schema fields. Stable exploration event IDs use the existing durable progression outbox.
