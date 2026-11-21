@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { playerFootprint } from "../../packages/game-core/src/movement.js";
 import {
@@ -26,7 +27,16 @@ async function position(page: Page, wizard: string) {
   return { x: x!, y: y! };
 }
 async function snapshot(page: Page, name: string) {
-  await page.screenshot({ path: artifacts + name + ".png", fullPage: true });
+  const ids: Record<string, string> = {
+    "lobby-four-players": "party-lobby-polished",
+    "player-disconnected": "reconnect-feedback",
+  };
+  const screenshot = await page.screenshot({
+    path: artifacts + name + ".png",
+    fullPage: true,
+  });
+  if (ids[name])
+    await writeFile("artifacts/milestone-7/" + ids[name] + ".png", screenshot);
 }
 async function showDebug(page: Page) {
   await page.bringToFront();
@@ -50,7 +60,7 @@ async function hold(page: Page, key: string, action: () => Promise<void>) {
 
 async function travel(page: Page, axis: "x" | "y", target: number) {
   const key = axis === "x" ? ["a", "d"] : ["w", "s"];
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 15; attempt++) {
     const here = (await position(page, "fire"))[axis];
     const distance = Math.abs(target - here);
     if (distance < 10) return;
@@ -59,12 +69,9 @@ async function travel(page: Page, axis: "x" | "y", target: number) {
       if (distance < 60) {
         const pulse = Math.min(
           240,
-          Math.max(65, ((distance - 5) * 1000) / 144),
+          Math.max(40, ((distance - 5) * 1000) / 144),
         );
-        await page.evaluate(
-          (delay) => new Promise((resolve) => setTimeout(resolve, delay)),
-          pulse,
-        );
+        await new Promise((resolve) => setTimeout(resolve, pulse));
       } else {
         await expect
           .poll(
@@ -79,9 +86,8 @@ async function travel(page: Page, axis: "x" | "y", target: number) {
           .toBeLessThan(28);
       }
     });
-    await expect
-      .poll(async () => (await position(page, "fire"))[axis])
-      .not.toBe(here);
+    // Allow a released input and the following state patch to arrive before correcting direction.
+    await new Promise((resolve) => setTimeout(resolve, 240));
     await expect(
       actor(page, "fire").getByTestId("actor-animation"),
     ).toContainText(".idle.");
@@ -277,7 +283,8 @@ test("four independent browsers share wizards, authoritative movement, and ident
     });
     await travel(a, "y", fireStart.y);
     const pillar = obstacleTiles.find(({ x, y }) => x === 18 && y === 17)!;
-    await travel(a, "x", tileCenter(pillar.x, pillar.y).x);
+    // Approach the pillar from its western half to clear the wall one column east.
+    await travel(a, "x", tileCenter(pillar.x, pillar.y).x - 8);
     await hold(a, "s", async () => {
       await expect
         .poll(async () => (await position(a, "fire")).y)

@@ -1,5 +1,5 @@
-import { Client, type Room } from "@colyseus/sdk";
-import { localPorts } from "@obsidian/shared";
+import type { Room } from "@colyseus/sdk";
+import { apiUrl, gameBase as endpoint } from "../endpoints";
 import {
   CoopState,
   INPUT_HZ,
@@ -69,15 +69,11 @@ const blank: PartySnapshot = {
   local: null,
 };
 const key = "obsidian.party.code";
-const endpoint =
-  import.meta.env.VITE_GAME_SERVER_URL || `ws://localhost:${localPorts.game}`;
 const gameHttp = new URL(endpoint);
 gameHttp.protocol =
   gameHttp.protocol === "wss:" || gameHttp.protocol === "https:"
     ? "https:"
     : "http:";
-const api =
-  import.meta.env.VITE_API_URL || `http://localhost:${localPorts.api}`;
 
 type CoopRoom = Room<unknown, CoopState>;
 
@@ -191,12 +187,13 @@ class PartyConnection {
     const generation = ++this.generation;
     this.update({ connection: "connecting", error: "" });
     try {
-      await checkedRequest(new URL("/session/guest", api));
+      await checkedRequest(apiUrl("/session/guest"));
       const reservation = await requestSeat(
         request,
         () => generation === this.generation,
       );
       if (generation !== this.generation) return;
+      const { Client } = await import("@colyseus/sdk");
       const room = await new Client(endpoint).consumeSeatReservation<CoopState>(
         reservation,
         CoopState,
@@ -406,8 +403,14 @@ class PartyConnection {
           }
         : null,
     };
-    const serialized = JSON.stringify(summary) + (combat?.result ?? "");
-    if (serialized === this.rosterKey) return;
+    const serialized =
+      JSON.stringify({ ...summary, exploration: undefined }) +
+      (combat?.result ?? "");
+    if (
+      serialized === this.rosterKey &&
+      summary.exploration === this.snapshot.exploration
+    )
+      return;
     this.rosterKey = serialized;
     this.update({
       ...summary,

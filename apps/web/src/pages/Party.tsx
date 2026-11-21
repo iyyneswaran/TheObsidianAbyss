@@ -20,6 +20,7 @@ export function Party() {
   );
   const [confirm, setConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const busy =
     session.connection === "connecting" || session.connection === "recovering";
   const connected = session.members.filter(
@@ -68,15 +69,23 @@ export function Party() {
             <button
               className="action"
               onClick={() =>
-                void navigator.clipboard
-                  .writeText(session.code)
-                  .then(() => setCopied(true))
-                  .catch(() => setCopied(false))
+                void (async () => {
+                  try {
+                    await navigator.clipboard.writeText(session.code);
+                    setCopied(true);
+                    setCopyError(false);
+                  } catch {
+                    setCopyError(true);
+                  }
+                })()
               }
             >
               {copied ? "Copied" : "Copy code"}
             </button>
           </div>
+          {copyError && (
+            <p role="status">Select the team code above to copy it.</p>
+          )}
           <p data-testid="party-count" className="text-sm text-slate-300">
             {connected} of {PARTY_SIZE} connected
           </p>

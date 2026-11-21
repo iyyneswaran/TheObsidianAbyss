@@ -73,7 +73,7 @@ export function sortDungeonOccluders(
     layer.setVisible(false);
   }
   if (sections.length) {
-    let active: string | undefined;
+    let active = "";
     function switchSection() {
       const camera = scene.cameras.main;
       const x = camera.midPoint.x,
@@ -81,9 +81,22 @@ export function sortDungeonOccluders(
       const section = sections.find(
         (s) => x >= s.x && y >= s.y && x < s.x + s.width && y < s.y + s.height,
       );
-      if (!section || section.id === active) return;
-      active = section.id;
-      const tiles = groups.get(active) ?? [];
+      if (!section) return;
+      const bucket = 128,
+        left = Math.floor(camera.worldView.left / bucket),
+        top = Math.floor(camera.worldView.top / bucket),
+        right = Math.ceil(camera.worldView.right / bucket),
+        bottom = Math.ceil(camera.worldView.bottom / bucket);
+      const key = [section.id, left, top, right, bottom].join("/");
+      if (key === active) return;
+      active = key;
+      const tiles = (groups.get(section.id) ?? []).filter(
+        (tile) =>
+          tile.pixelX >= (left - 1) * bucket &&
+          tile.pixelX <= (right + 1) * bucket &&
+          tile.pixelY >= (top - 1) * bucket &&
+          tile.pixelY <= (bottom + 1) * bucket,
+      );
       tiles.forEach(render);
       for (let i = tiles.length; i < pool.length; i++)
         pool[i]!.setVisible(false);

@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useRef, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { CharacterSelection } from "./pages/CharacterSelection";
@@ -12,14 +12,46 @@ import { AccountForm, Profile } from "./progression/Account";
 import { ProgressionNav } from "./progression/common";
 import { Store, Vault } from "./progression/Equipment";
 import { Quests } from "./progression/Quests";
+import { PlayerPreferences, Settings } from "./settings/Settings";
 import "./styles/main.css";
+import "./styles/interface.css";
 
+function SettingsNavigation() {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (open) ref.current?.showModal();
+  }, [open]);
+  return (
+    <>
+      <ProgressionNav openSettings={() => setOpen(true)} />
+      {open && (
+        <dialog
+          ref={ref}
+          onClose={() => setOpen(false)}
+          aria-label="Session settings"
+          className="m-auto max-h-[90vh] w-[min(95vw,1100px)] overflow-auto rounded-xl bg-panel text-white backdrop:bg-black/75"
+        >
+          <form
+            method="dialog"
+            className="sticky top-0 z-10 flex justify-end bg-panel p-3"
+          >
+            <button className="action">Return to game</button>
+          </form>
+          <Settings />
+        </dialog>
+      )}
+    </>
+  );
+}
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
+      <PlayerPreferences />
       <PartyRouteLifecycle />
-      <ProgressionNav />
+      <SettingsNavigation />
       <Routes>
+        <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Landing />} />
         <Route path="/playground" element={<Playground />} />
         <Route path="/dungeon" element={<Dungeon />} />

@@ -34,3 +34,7 @@ pnpm test
 `pnpm test:unit` runs Vitest. `pnpm test:browser` starts its own frontend, API and game server. Use separate ports when running the development stack concurrently. For release checks with persistence and a production restart, use `pnpm verify:progression` with a dedicated PostgreSQL test database.
 
 See [Architecture](docs/ARCHITECTURE.md), [Tech stack](docs/TECH_STACK.md), [Milestones](docs/MILESTONES.md), [Asset registry](docs/ASSET_REGISTRY.md), and [Windows development](docs/DEVELOPMENT.md).
+
+## Sound, controls and releases
+
+Open **Settings** to change the audio mix, key bindings, HUD size, motion and contrast. During a run the menu opens over the game. The release gate runs against disposable PostgreSQL and real Chromium clients. See [deployment instructions](docs/DEPLOYMENT.md) and the [Milestone 7 report](docs/milestone-7.md).

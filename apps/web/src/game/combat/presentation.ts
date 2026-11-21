@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { audio, combatCue } from "../../audio/sound";
+import { preferences, gameInput, keyName } from "../../settings/preferences";
 import { combatEffects, type PixelFxAtlas } from "@obsidian/game-assets";
 import {
   alternatives,
@@ -136,15 +138,35 @@ export function createCombatPresentation(
   const play = (event: CombatEvent) => {
     if (event.id <= lastEvent) return;
     lastEvent = event.id;
+    const distance = Math.hypot(
+      camera.midPoint.x - event.x,
+      camera.midPoint.y - event.y,
+    );
+    const major = event.kind === "phase" || event.kind === "outcome";
+    audio.cue(
+      combatCue(event),
+      "sfx",
+      major ? 0 : distance,
+      major ? 4 : event.kind === "warning" ? 3 : 1,
+    );
+    const prefs = preferences();
+    if (
+      event.kind === "damage" &&
+      event.target === party.getSnapshot().playerId &&
+      prefs.shake &&
+      !prefs.reducedMotion &&
+      !camera.shakeEffect.isRunning
+    )
+      camera.shake(85, 0.0014);
     if (event.fx && event.kind !== "projectile")
       effect(event.fx, event.x, event.y, event.angle);
     if (event.kind !== "damage" && event.kind !== "heal") return;
     if (event.kind === "damage" && event.target)
       recentHits.set(event.target, scene.time.now + 130);
-    if (floats.size >= 26) return;
+    if (!prefs.numbers || floats.size >= 26) return;
     const healing = event.kind === "heal";
     const message = scene.add
-      .text(event.x, event.y - 27, (healing ? "+" : "−") + event.amount, {
+      .text(event.x, event.y - 27, (healing ? "+" : "âˆ’") + event.amount, {
         fontFamily: "monospace",
         fontSize: "12px",
         fontStyle: "bold",
@@ -157,7 +179,7 @@ export function createCombatPresentation(
     floats.add(message);
     scene.tweens.add({
       targets: message,
-      y: message.y - 18,
+      y: message.y - (prefs.reducedMotion ? 0 : 18),
       alpha: 0,
       duration: 720,
       onComplete: () => {
@@ -175,18 +197,30 @@ export function createCombatPresentation(
     if (pointer.button === 0) ability("BASIC", pointer);
   };
   scene.input.on("pointerdown", pointerDown);
-  const keyboard = scene.input.keyboard!;
-  const actions = [
-    ["Q", () => ability("SKILL_1", scene.input.activePointer)],
-    ["E", () => ability("SKILL_2", scene.input.activePointer)],
-    ["R", () => ability("SKILL_3", scene.input.activePointer)],
-    ["F", () => ability("ULTIMATE", scene.input.activePointer)],
-    ["G", () => party.interact()],
-  ] as const;
-  for (const [key, action] of actions) keyboard.on("keydown-" + key, action);
+  const keyDown = (event: KeyboardEvent) => {
+    if (!gameInput(event)) return;
+    const key = keyName(event),
+      { keys } = preferences();
+    if (key === keys.interact) party.interact();
+    else {
+      const slot = (
+        ["BASIC", "SKILL_1", "SKILL_2", "SKILL_3", "ULTIMATE"] as const
+      ).find((s) => keys[s] === key);
+      if (!slot) return;
+      if (
+        key === "Space" &&
+        event.target instanceof Element &&
+        event.target.closest("button,a")
+      )
+        return;
+      ability(slot, scene.input.activePointer);
+    }
+    event.preventDefault();
+  };
+  scene.input.keyboard!.on("keydown", keyDown);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
     scene.input.off("pointerdown", pointerDown);
-    for (const [key, action] of actions) keyboard.off("keydown-" + key, action);
+    scene.input.keyboard?.off("keydown", keyDown);
   });
 
   function healthBar(
@@ -255,6 +289,15 @@ export function createCombatPresentation(
         let sprite = monsters.get(id);
         const boss = enemy.kind === "overlord";
         if (!sprite) {
+          audio.cue(
+            "enemy:" + enemy.kind,
+            "sfx",
+            Math.hypot(
+              camera.midPoint.x - enemy.x,
+              camera.midPoint.y - enemy.y,
+            ),
+            boss ? 4 : 1,
+          );
           sprite = scene.add
             .sprite(
               enemy.x,
@@ -274,7 +317,8 @@ export function createCombatPresentation(
         sprite.setFrame(
           (facingRows[enemy.facing] ?? 0) * 2 + Number(walk || 0),
         );
-        sprite.setDepth(depthAt(sprite.y));
+        const depth = depthAt(sprite.y);
+        if (sprite.depth !== depth) sprite.setDepth(depth);
         if (recentHits.has(id)) sprite.setTintFill(0xffe5dc);
         else if (enemy.statuses.includes("Frozen")) sprite.setTint(0x96dbff);
         else sprite.clearTint();

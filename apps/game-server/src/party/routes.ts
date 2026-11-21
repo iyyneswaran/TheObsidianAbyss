@@ -53,6 +53,18 @@ export function partyRouter(
   const allowTotal = createRequestLimit(360, 60_000, 1);
 
   return createRouter({
+    health: createEndpoint("/health", { method: "GET" }, async () =>
+      Response.json({ status: "up" }),
+    ),
+    ready: createEndpoint("/ready", { method: "GET" }, async () => {
+      try {
+        if (!progression) throw Error();
+        await progression.db.$queryRaw`SELECT 1`;
+        return Response.json({ status: "ready" });
+      } catch {
+        return Response.json({ status: "unavailable" }, { status: 503 });
+      }
+    }),
     partyConnect: createEndpoint(
       "/party/connect",
       { method: "POST", requireRequest: true, disableBody: true },

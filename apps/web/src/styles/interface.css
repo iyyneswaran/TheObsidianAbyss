@@ -1,0 +1,160 @@
+.abyss-entry {
+  position: relative;
+  isolation: isolate;
+  min-height: min(840px, 92vh);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 70% 45%, #27193c, #101021 68%);
+  border-bottom: 1px solid #554561;
+}
+.entry-art {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 47%;
+  background-image: url("/assets/art/shadow-codex.webp");
+  background-size: auto 158%;
+  background-position: 1% 4%;
+  mask-image:
+    linear-gradient(90deg, transparent, #000 16%, #000 86%, transparent),
+    linear-gradient(0deg, transparent, #000 16%, #000 85%, transparent);
+  mask-composite: intersect;
+}
+.entry-copy {
+  padding: 5rem clamp(1.5rem, 7vw, 8rem);
+  max-width: 870px;
+  width: 63%;
+}
+.entry-kicker {
+  font: 600 0.75rem/1.7 system-ui;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: #ddbf89;
+}
+.entry-title {
+  font:
+    normal clamp(3.8rem, 7vw, 7.6rem)/0.95 Georgia,
+    serif;
+  letter-spacing: -0.045em;
+  color: #f6e8d8;
+  margin: 1.1rem 0 1.8rem;
+  text-wrap: balance;
+}
+.entry-detail {
+  max-width: 36ch;
+  line-height: 1.65;
+  color: #dbccdf;
+  margin-bottom: 2rem;
+}
+.entry-copy nav .action:first-child {
+  background: #ead2a2;
+  color: #241b25;
+}
+body {
+  background-image: radial-gradient(
+    ellipse at 80% 0%,
+    #222039,
+    transparent 62%
+  );
+  background-attachment: fixed;
+}
+nav[aria-label="Game navigation"] {
+  align-items: center;
+  box-shadow: 0 2px 15px #0003;
+}
+nav [aria-current="page"] {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.settings-grid h2 {
+  font:
+    1.65rem Georgia,
+    serif;
+  color: #f0dcba;
+  margin-bottom: 1rem;
+}
+.settings-grid label {
+  display: block;
+  margin: 0.85rem 0;
+  accent-color: #cfb3f4;
+}
+.slider output {
+  float: right;
+  font-variant-numeric: tabular-nums;
+  color: #e4d2b3;
+}
+.slider input {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+.binding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #493e54;
+  padding: 0.35rem 0;
+}
+.binding button {
+  min-width: 4rem;
+  justify-content: center;
+}
+progress {
+  accent-color: #cfb3f4;
+  margin-inline: 0.6rem;
+  max-width: 32vw;
+}
+[aria-label="Combat controls"],
+[aria-label="Expedition map"] {
+  zoom: var(--hud-scale, 1);
+}
+[data-testid="ability-slot"][data-depleted="true"] {
+  border-style: dashed;
+}
+[data-testid="boss-hud"] {
+  border-left: 4px solid #df91cc;
+}
+[data-testid="run-result"] {
+  box-shadow: 0 10px 40px #08041060;
+}
+[data-contrast="true"] body {
+  --color-slate-300: white;
+  --color-slate-400: #f2edf7;
+  --color-gold: #f9da90;
+  --color-iris: #e4ccff;
+  --color-panel: #090712;
+}
+[data-contrast="true"] :focus-visible {
+  outline: 3px solid #ffed8a;
+}
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before {
+  scroll-behavior: auto !important;
+  transition-duration: 0s !important;
+  animation-duration: 0.001ms !important;
+}
+@media (max-width: 740px) {
+  .abyss-entry {
+    align-items: flex-end;
+    min-height: 80vh;
+  }
+  .entry-art {
+    inset: 0 0 22% 12%;
+    opacity: 0.62;
+    background-size: auto 165%;
+  }
+  .entry-copy {
+    width: 100%;
+    padding: 9rem 1.5rem 3rem;
+    background: linear-gradient(0deg, #101021 50%, transparent);
+  }
+  .entry-copy .entry-title {
+    max-width: 9ch;
+  }
+}

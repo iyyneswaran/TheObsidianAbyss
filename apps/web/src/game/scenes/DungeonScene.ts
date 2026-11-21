@@ -26,7 +26,9 @@ import {
 } from "../dungeon/loadDungeon";
 import type { DungeonPreviewEvents } from "../dungeon/preview";
 
-const { W, A, S, D, UP, LEFT, DOWN, RIGHT, R } = Phaser.Input.Keyboard.KeyCodes;
+import { preferences, gameInput, keyName } from "../../settings/preferences";
+import { audio } from "../../audio/sound";
+const { R } = Phaser.Input.Keyboard.KeyCodes;
 
 export class DungeonScene extends Phaser.Scene {
   private step?: (delta: number) => void;
@@ -40,6 +42,12 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.on("progress", (value: number) =>
+      this.eventsOut.onProgress?.(value),
+    );
+    this.load.once("loaderror", () =>
+      this.eventsOut.onError(new Error("Dungeon asset unavailable.")),
+    );
     preloadDungeon(
       this,
       this.online?.world?.dungeon === "expedition"
@@ -124,16 +132,35 @@ export class DungeonScene extends Phaser.Scene {
     if (!keyboard)
       throw new Error("Dungeon keyboard controls could not initialize.");
 
-    const keys = {
-      w: keyboard.addKey(W),
-      a: keyboard.addKey(A),
-      s: keyboard.addKey(S),
-      d: keyboard.addKey(D),
-      up: keyboard.addKey(UP),
-      left: keyboard.addKey(LEFT),
-      down: keyboard.addKey(DOWN),
-      right: keyboard.addKey(RIGHT),
+    const held = new Set<string>();
+    const down = (e: KeyboardEvent) => {
+      if (!gameInput(e)) return;
+      const key = keyName(e);
+      if (
+        (["up", "left", "down", "right"] as const).some(
+          (a) => preferences().keys[a] === key,
+        ) ||
+        key.startsWith("Arrow")
+      ) {
+        held.add(key);
+        e.preventDefault();
+      }
     };
+    const up = (e: KeyboardEvent) => {
+      held.delete(keyName(e));
+    };
+    const clear = () => held.clear();
+    keyboard.on("keydown", down);
+    keyboard.on("keyup", up);
+    window.addEventListener("blur", clear);
+    document.addEventListener("focusin", clear);
+    const removeKeys = () => {
+      keyboard.off("keydown", down);
+      keyboard.off("keyup", up);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("focusin", clear);
+    };
+    this.events.once(Phaser.Scenes.Events.DESTROY, removeKeys);
     if (!player && !online) keyboard.addKey(R).on("down", () => view.reset());
 
     const zoom = (
@@ -190,13 +217,20 @@ export class DungeonScene extends Phaser.Scene {
         ? expeditionMarkers(this, data, this.online)
         : undefined;
     let elapsed = 0;
+    let lastStep = 0;
+    let lastFoot = { x: NaN, y: NaN };
+    let wasHazardous = false;
+    let lastChart = "";
+    let zone = "forsaken-entrance";
+    audio.scene(zone);
     this.step = (delta) => {
+      const { keys } = preferences();
       const x =
-        Number(keys.d.isDown || keys.right.isDown) -
-        Number(keys.a.isDown || keys.left.isDown);
+        Number(held.has(keys.right) || held.has("ArrowRight")) -
+        Number(held.has(keys.left) || held.has("ArrowLeft"));
       const y =
-        Number(keys.s.isDown || keys.down.isDown) -
-        Number(keys.w.isDown || keys.up.isDown);
+        Number(held.has(keys.down) || held.has("ArrowDown")) -
+        Number(held.has(keys.up) || held.has("ArrowUp"));
       const step = Math.min(delta, 50);
       if (player) {
         player.step({ x, y }, step);
@@ -220,6 +254,28 @@ export class DungeonScene extends Phaser.Scene {
       positionCamera();
       combat?.step(step);
       elapsed += delta;
+      const snapshot = this.online?.getSnapshot();
+      if (snapshot?.exploration && lastChart !== snapshot.exploration) {
+        const chart = JSON.parse(snapshot.exploration) as { zone: string };
+        if (lastChart && zone !== chart.zone) audio.cue("gate:transition");
+        zone = chart.zone;
+        lastChart = snapshot.exploration;
+      }
+      audio.scene(snapshot?.result ? "" : snapshot?.boss ? "overlord" : zone);
+      const actor = this.online?.world?.players.get(snapshot?.playerId ?? "");
+      const pos = actor ?? player?.transform;
+      if (pos && elapsed - lastStep > 360) {
+        if (
+          (x || y) &&
+          Math.hypot(pos.x - lastFoot.x, pos.y - lastFoot.y) > 1 &&
+          (!actor || actor.life === "ALIVE")
+        )
+          audio.cue("step");
+        if (actor?.hazardous && !wasHazardous) audio.cue("environment:lava");
+        wasHazardous = !!actor?.hazardous;
+        lastStep = elapsed;
+        lastFoot = { x: pos.x, y: pos.y };
+      }
       animate(elapsed);
       updateMarkers?.();
       if (
@@ -235,13 +291,17 @@ export class DungeonScene extends Phaser.Scene {
             .eventNames()
             .reduce((n, event) => n + this.events.listenerCount(event), 0),
         );
+        canvas.dataset.voices = String(audio.diagnostics.voices);
+        canvas.dataset.score = audio.diagnostics.score;
+        canvas.dataset.patchHz = String(this.online?.updateRate ?? 0);
+        canvas.dataset.inputSequence = String(actor?.acknowledged ?? 0);
         canvas.dataset.fps = String(this.game.loop.actualFps.toFixed(1));
       }
       const combatState = debug && this.online?.world?.combat;
       debug?.(
         elapsed,
         combat && combatState
-          ? {
+          ? () => ({
               ...combat.sample(),
               projectiles: combatState.projectiles.size,
               targets: [...combatState.enemies.entries()].map(
@@ -258,13 +318,15 @@ export class DungeonScene extends Phaser.Scene {
                   target: enemy.target,
                 }),
               ),
-            }
+            })
           : undefined,
       );
     };
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.online?.sendMovement(0, 0, performance.now());
+      audio.leave();
+      removeKeys();
       this.input.off("wheel", zoom);
       delete this.step;
     });

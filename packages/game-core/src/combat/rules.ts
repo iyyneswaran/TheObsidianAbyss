@@ -85,6 +85,7 @@ export interface CombatEvent {
     | "projectile"
     | "impact"
     | "damage"
+    | "block"
     | "heal"
     | "status"
     | "remove"
@@ -99,6 +100,7 @@ export interface CombatEvent {
   source?: string;
   target?: string;
   fx?: string;
+  sound?: string;
   amount?: number;
   angle?: number;
   duration?: number;

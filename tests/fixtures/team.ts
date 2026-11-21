@@ -61,13 +61,14 @@ export async function getTeam(
         { timeout: 25000 },
       );
       await expect(page.getByTestId("local-hp")).toBeVisible();
+      if (process.env.M7_PRODUCTION === "1") continue;
       await page.keyboard.press("F3");
       await expect(page.getByTestId("online-actor")).toHaveCount(
         wizards.length,
       );
       roomIds.add(await page.getByTestId("debug-room-id").innerText());
     }
-    expect(roomIds.size).toBe(1);
+    if (process.env.M7_PRODUCTION !== "1") expect(roomIds.size).toBe(1);
     return { leader, pages, contexts, code, errors };
   } catch (error) {
     await close(contexts);

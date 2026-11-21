@@ -17,6 +17,11 @@ const { GAME_PORT, WEB_ORIGIN, PARTY_RECOVERY_SECONDS, PARTY_DROP_LIMIT } =
   readConfig();
 const secret = readGuestSecret();
 const databaseUrl = readDatabaseUrl();
+if (
+  process.env.NODE_ENV === "production" &&
+  (!secret || !databaseUrl || !process.env.WEB_ORIGIN)
+)
+  throw Error("Production requires database, signing key and web origin.");
 const db = databaseUrl ? createDatabase(databaseUrl) : undefined;
 const outbox = db
   ? new ProgressionOutbox(
@@ -37,5 +42,11 @@ const { server } = createGameServer(
       }
     : undefined,
 );
-await server.listen(GAME_PORT, "127.0.0.1");
-console.log(`Colyseus listening on ws://127.0.0.1:${GAME_PORT}`);
+await server.listen(GAME_PORT, process.env.BIND_HOST || "127.0.0.1");
+console.info(
+  JSON.stringify({
+    event: "service.started",
+    service: "game",
+    port: GAME_PORT,
+  }),
+);

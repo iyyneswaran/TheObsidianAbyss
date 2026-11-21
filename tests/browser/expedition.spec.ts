@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import type { ExpeditionView } from "../../packages/game-core/src/expedition.js";
 import { getTeam, close } from "../fixtures/team.js";
@@ -12,6 +12,11 @@ type State = {
   view: ExpeditionView;
   time: number;
   tick: number;
+  timing: {
+    count: number;
+    stepMs: { median: number; p95: number };
+    callbackLagMs: { median: number; p95: number };
+  };
   phase: number;
   mobs: { id: string; encounter: string; hp: number }[];
   team: {
@@ -27,6 +32,7 @@ async function fixture(
   t: Team,
   area: string,
   params: Record<string, string> = {},
+  allowVanishedTarget = false,
 ) {
   const url = new URL(
     "http://127.0.0.1:" + process.env.COMBAT_FIXTURE_PORT + "/stage",
@@ -35,7 +41,8 @@ async function fixture(
     params: { team: t.code, area, ...params },
     headers: { "x-combat-fixture-key": process.env.COMBAT_FIXTURE_KEY! },
   });
-  expect(r.status(), area).toBe(200);
+  if (!allowVanishedTarget || r.status() !== 409)
+    expect(r.status(), area).toBe(200);
   return r;
 }
 async function inspect(t: Team): Promise<State> {
@@ -67,10 +74,33 @@ async function fight(t: Team, encounter: string) {
   const phases = new Set<number>();
   for (let k = 0; k < 115; k++) {
     const state = await inspect(t);
+    if (
+      state.phase &&
+      !phases.has(state.phase) &&
+      t.pages.length === 4 &&
+      !process.env.M7_PRODUCTION
+    ) {
+      const canvas = t.leader.getByTestId("online-stage").locator("canvas");
+      const metrics = await canvas.evaluate((el) => ({ ...el.dataset }));
+      await mkdir("artifacts/milestone-7", { recursive: true });
+      await writeFile(
+        "artifacts/milestone-7/boss-phase-" + state.phase + "-metrics.json",
+        JSON.stringify({ metrics, timing: state.timing }, null, 2) + "\n",
+      );
+    }
     if (state.phase) phases.add(state.phase);
     const enemy = state.mobs.find((m) => m.encounter === encounter);
     if (!enemy) return phases;
-    await fixture(t, enemy.id);
+    const staged = await fixture(t, enemy.id, {}, true);
+    if (staged.status() === 409) {
+      // A queued hit can remove this particular monster between inspection and staging.
+      const latest = await inspect(t);
+      expect(
+        latest.mobs.some((m) => m.id === enemy.id),
+        enemy.id + " still present after a staging conflict",
+      ).toBe(false);
+      continue;
+    }
     const living = t.pages.filter(
       (_, i) => state.team.find((s) => s.slot === i)?.hp,
     );
@@ -79,6 +109,11 @@ async function fight(t: Team, encounter: string) {
       living.map(async (p) => {
         const canvas = p.getByTestId("online-stage").locator("canvas");
         await canvas.click({ position: { x: 145, y: 130 }, force: true });
+        // Break a summoned pack surrounding the boss using the real area spells.
+        if (encounter === "boss" && k > 24) {
+          await p.keyboard.press("r");
+          await p.keyboard.press("f");
+        }
       }),
     );
     await wait(80);
@@ -137,6 +172,23 @@ const board = (p: Page) =>
 async function journey(t: Team, full: boolean) {
   const { leader } = t;
   const samples = [];
+  const benchmark =
+    full &&
+    process.env.M7_PRODUCTION !== "1" &&
+    (process.env.M7_BENCH || "after");
+  if (benchmark) {
+    await leader.evaluate(() => {
+      const gaps: number[] = [];
+      Reflect.set(window, "benchmarkFrames", gaps);
+      let previous = performance.now();
+      function sample(now: number) {
+        if (gaps.length < 60000) gaps.push(now - previous);
+        previous = now;
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    });
+  }
   const loaded = await leader.evaluate(() =>
     performance
       .getEntriesByType("resource")
@@ -146,17 +198,59 @@ async function journey(t: Team, full: boolean) {
         duration: e.duration,
       })),
   );
+  if (t.pages.length === 1 && !process.env.M7_PRODUCTION) {
+    const start = await inspect(t),
+      begin = performance.now();
+    const frames = await leader.evaluate(
+      () =>
+        new Promise<number[]>((resolve) => {
+          const intervals: number[] = [];
+          let previous = performance.now();
+          const end = previous + 4000;
+          function sample(time: number) {
+            intervals.push(time - previous);
+            previous = time;
+            if (time >= end) resolve(intervals.sort((a, b) => a - b));
+            else requestAnimationFrame(sample);
+          }
+          requestAnimationFrame(sample);
+        }),
+    );
+    const end = await inspect(t);
+    await writeFile(
+      "artifacts/milestone-7/one-player-idle.json",
+      JSON.stringify(
+        {
+          frames: frames.length,
+          medianMs: frames[Math.floor(frames.length / 2)],
+          p95Ms: frames[Math.floor(frames.length * 0.95)],
+          tickHz:
+            ((end.tick - start.tick) * 1000) / (performance.now() - begin),
+          timing: end.timing,
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+  }
   const firstTick = (await inspect(t)).tick;
   const clockStarted = Date.now();
   const cdp = await leader.context().newCDPSession(leader);
+  const messageSizes: number[] = [],
+    patchTimes: number[] = [];
+  let outbound = 0;
+  cdp.on("Network.webSocketFrameSent", () => outbound++);
   let bytes = 0,
     frames = 0;
   await cdp.send("Network.enable");
   cdp.on("Network.webSocketFrameReceived", (e) => {
-    bytes +=
+    const size =
       e.response.opcode === 2
         ? Buffer.from(e.response.payloadData, "base64").length
         : Buffer.byteLength(e.response.payloadData);
+    bytes += size;
+    messageSizes.push(size);
+    patchTimes.push(e.timestamp);
     frames++;
   });
   await leader.bringToFront();
@@ -165,8 +259,13 @@ async function journey(t: Team, full: boolean) {
   await leader.mouse.wheel(0, 120);
   const initial = await inspect(t);
   await leader.keyboard.down("d");
-  await wait(260);
-  await leader.keyboard.up("d");
+  try {
+    await expect
+      .poll(async () => (await inspect(t)).team[0]!.x)
+      .toBeGreaterThan(initial.team[0]!.x);
+  } finally {
+    await leader.keyboard.up("d");
+  }
   expect((await inspect(t)).team[0]!.x).toBeGreaterThan(initial.team[0]!.x);
   await mark(t, gates[0]!, 0);
   await leader.keyboard.press("g");
@@ -226,13 +325,19 @@ async function journey(t: Team, full: boolean) {
         );
         if (full) {
           await capture(leader, "minimap");
+          await board(leader).screenshot({
+            path: "artifacts/milestone-7/minimap-polished.png",
+          });
           await capture(leader, "objective-tracker");
         }
         await leader.keyboard.press("m");
       }
     }
     const zone = (await inspect(t)).view.title;
-    const reconnect = i === 0 && t.pages.length === 2;
+    const reconnect =
+      i === 0 &&
+      (t.pages.length === 2 ||
+        (t.pages.length === 4 && process.env.M7_PRODUCTION === "1"));
     const original = (await inspect(t)).team.find((p) => p.slot === 1);
     if (reconnect) {
       await t.pages[1]!.close();
@@ -247,6 +352,7 @@ async function journey(t: Team, full: boolean) {
       t.pages[1] = page;
       await page.goto("/party");
       await page.getByLabel("Team code").fill(t.code);
+      const recoveryStarted = Date.now();
       await page
         .getByRole("button", { name: "Reconnect", exact: true })
         .click();
@@ -254,6 +360,14 @@ async function journey(t: Team, full: boolean) {
         "data-ready",
         "true",
       );
+      const readyMs = Date.now() - recoveryStarted;
+      if (process.env.M7_PRODUCTION === "1") {
+        await mkdir("artifacts/milestone-7", { recursive: true });
+        await writeFile(
+          "artifacts/milestone-7/reconnect.json",
+          JSON.stringify({ seats: t.pages.length, readyMs }, null, 2) + "\n",
+        );
+      }
       const restored = (await inspect(t)).team.find((p) => p.slot === 1)!;
       expect(restored.id).toBe(original!.id);
       expect(restored.hp).toBe(original!.hp);
@@ -275,6 +389,7 @@ async function journey(t: Team, full: boolean) {
       .evaluate((e) => ({ ...e.dataset }));
     const heap = await cdp.send("Runtime.getHeapUsage");
     samples.push({
+      timing: (await inspect(t)).timing,
       preloadResources: loaded.length,
       preloadBytes: loaded.reduce((n, e) => n + e.bytes, 0),
       longestAssetMs: Math.max(...loaded.map((e) => e.duration)),
@@ -286,6 +401,16 @@ async function journey(t: Team, full: boolean) {
       metrics,
       heap: heap.usedSize,
       receivedBytes: bytes,
+      network: {
+        outbound,
+        meanBytes: bytes / Math.max(1, frames),
+        p95Bytes: [...messageSizes].sort((a, b) => a - b)[
+          Math.floor(0.95 * frames)
+        ],
+        framesPerSecond:
+          frames /
+          Math.max(0.001, (patchTimes.at(-1) ?? 0) - (patchTimes[0] ?? 0)),
+      },
       receivedFrames: frames,
     });
     if (full && i === 0) await capture(leader, "zone-transition");
@@ -304,6 +429,23 @@ async function journey(t: Team, full: boolean) {
       JSON.stringify(samples, null, 2) + "\n",
     );
   }
+  if (benchmark) {
+    const frame = await leader.evaluate(() => {
+      const gaps = (Reflect.get(window, "benchmarkFrames") as number[]).sort(
+        (a, b) => a - b,
+      );
+      return {
+        count: gaps.length,
+        medianMs: gaps[Math.floor(gaps.length * 0.5)],
+        p95Ms: gaps[Math.floor(gaps.length * 0.95)],
+      };
+    });
+    await mkdir("artifacts/milestone-7", { recursive: true });
+    await writeFile(
+      "artifacts/milestone-7/performance-" + benchmark + ".json",
+      JSON.stringify({ frame, samples }, null, 2) + "\n",
+    );
+  }
   expect(t.errors).toEqual([]);
 }
 for (const seats of [1, 2, 4])
@@ -320,7 +462,12 @@ for (const seats of [1, 2, 4])
         Array<string>(seats).fill("lightning"),
         db
           ? async (p, i) => {
-              if (i === 0) await verifyAccount(p, user, password, true, false);
+              if (i === 0 || process.env.M7_PRODUCTION === "1")
+                await verifyAccount(p, user + "_" + i, password, true, false);
+              if (process.env.M7_SILENT === "1") {
+                await p.goto("/settings");
+                await p.getByLabel("Enable audio").uncheck();
+              }
             }
           : undefined,
         "expedition",
@@ -350,6 +497,13 @@ for (const seats of [1, 2, 4])
                 .filter({ hasText: "Dungeon Explorer" })
                 .getByTestId("quest-progress"),
             ).toHaveText("1 / 1");
+            if (process.env.M7_PRODUCTION === "1") {
+              await p.getByRole("link", { name: "Home", exact: true }).click();
+              await expect(p.locator("canvas")).toHaveCount(0);
+              await expect(
+                p.getByRole("heading", { name: "The Obsidian Abyss" }),
+              ).toBeVisible();
+            }
           }
         }
       } finally {

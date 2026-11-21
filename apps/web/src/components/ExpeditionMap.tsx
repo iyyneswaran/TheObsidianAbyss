@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ExpeditionView } from "@obsidian/game-core";
+import { preferences, keyName, gameInput } from "../settings/preferences";
 import { party } from "../multiplayer/party";
 
 export function ExpeditionMap({ exploration }: { exploration: string }) {
@@ -11,11 +12,7 @@ export function ExpeditionMap({ exploration }: { exploration: string }) {
   const [, refresh] = useState(0);
   useEffect(() => {
     function key(e: KeyboardEvent) {
-      if (
-        e.code === "KeyM" &&
-        !e.repeat &&
-        !(e.target instanceof HTMLInputElement)
-      )
+      if (keyName(e) === preferences().keys.map && gameInput(e))
         setExpanded((v) => !v);
     }
     window.addEventListener("keydown", key);
@@ -55,7 +52,9 @@ export function ExpeditionMap({ exploration }: { exploration: string }) {
         <strong className="font-serif text-sm text-[#f0cf94]">
           {chart.title}
         </strong>
-        <kbd className="rounded border border-[#70617c] px-1 text-xs">M</kbd>
+        <kbd className="rounded border border-[#70617c] px-1 text-xs">
+          {preferences().keys.map}
+        </kbd>
       </button>
       <p className="text-xs text-[#bfb2cd]" data-testid="current-room">
         {room?.title ?? "Passage"}

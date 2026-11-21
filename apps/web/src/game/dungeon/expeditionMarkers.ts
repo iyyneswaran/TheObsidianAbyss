@@ -1,3 +1,5 @@
+import { preferences } from "../../settings/preferences";
+import { audio } from "../../audio/sound";
 import type Phaser from "phaser";
 import type { DungeonMap, ExpeditionView } from "@obsidian/game-core";
 import type { OnlineConnection } from "../characters/onlineActors";
@@ -35,13 +37,37 @@ export function expeditionMarkers(
     if (!raw) return;
     if (raw !== last) {
       last = raw;
+      const previous = view;
       view = JSON.parse(raw) as ExpeditionView;
+      if (
+        previous &&
+        view.zone === previous.zone &&
+        view.objectives.some(
+          (o) =>
+            o.done &&
+            previous.objectives.some((old) => old.id === o.id && !old.done),
+        )
+      )
+        audio.cue("objective:complete");
       ink.clear();
       for (const z of markers.filter((z) => z.properties.zone === view?.zone)) {
         const x = z.x + z.width / 2,
           y = z.y + z.height / 2;
         const phase = view.traps[z.id];
         if (phase) {
+          if (
+            previous &&
+            previous.traps[z.id] !== phase &&
+            phase !== "recovery"
+          )
+            audio.cue(
+              z.kind + ":" + phase,
+              "sfx",
+              Math.hypot(
+                x - scene.cameras.main.midPoint.x,
+                y - scene.cameras.main.midPoint.y,
+              ),
+            );
           const color =
             phase === "warning"
               ? 0xffc65c
@@ -84,6 +110,8 @@ export function expeditionMarkers(
     if (near)
       labels
         .setPosition(near.x + near.width / 2, near.y - 8)
-        .setText("G · " + String(near.properties.title));
+        .setText(
+          preferences().keys.interact + " · " + String(near.properties.title),
+        );
   };
 }

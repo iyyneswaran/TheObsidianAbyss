@@ -18,7 +18,12 @@ const env = {
 export default defineConfig({
   testDir: "./tests/production",
   workers: 1,
-  use: { baseURL, viewport: { width: 1380, height: 980 } },
+  use: {
+    baseURL,
+    trace: process.env.CI ? "retain-on-failure" : "off",
+    screenshot: "only-on-failure",
+    viewport: { width: 1380, height: 980 },
+  },
   webServer: [
     {
       command:

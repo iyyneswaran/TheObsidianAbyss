@@ -1,0 +1,199 @@
+{
+  "frame": {
+    "count": 2185,
+    "medianMs": 16.69999999999891,
+    "p95Ms": 33.30000000000291
+  },
+  "samples": [
+    {
+      "timing": {
+        "count": 255,
+        "stepMs": {
+          "median": 0.23919999599456787,
+          "p95": 1.1237000226974487
+        },
+        "callbackLagMs": {
+          "median": 13.236066818237305,
+          "p95": 14.819466590881348
+        }
+      },
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 70.39999999850988,
+      "tickHz": 29.884795254933273,
+      "zone": "Forsaken Entrance",
+      "transitionMs": 345,
+      "metrics": {
+        "objects": "345",
+        "textures": "43",
+        "listeners": "54",
+        "voices": "3",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "5",
+        "fps": "56.9"
+      },
+      "heap": 88595568,
+      "receivedBytes": 25568,
+      "network": {
+        "outbound": 13,
+        "meanBytes": 152.1904761904762,
+        "p95Bytes": 1104,
+        "framesPerSecond": 19.44457947624426
+      },
+      "receivedFrames": 168
+    },
+    {
+      "timing": {
+        "count": 256,
+        "stepMs": {
+          "median": 0.2818000018596649,
+          "p95": 1.1567000150680542
+        },
+        "callbackLagMs": {
+          "median": 12.870367050170898,
+          "p95": 15.000466346740723
+        }
+      },
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 70.39999999850988,
+      "tickHz": 29.997786141244188,
+      "zone": "Molten Passages",
+      "transitionMs": 263,
+      "metrics": {
+        "objects": "334",
+        "textures": "33",
+        "listeners": "54",
+        "voices": "0",
+        "score": "molten-passages",
+        "patchHz": "13",
+        "inputSequence": "10",
+        "fps": "55.6"
+      },
+      "heap": 67415312,
+      "receivedBytes": 102442,
+      "network": {
+        "outbound": 31,
+        "meanBytes": 261.3316326530612,
+        "p95Bytes": 1627,
+        "framesPerSecond": 21.830301483146535
+      },
+      "receivedFrames": 392
+    },
+    {
+      "timing": {
+        "count": 256,
+        "stepMs": {
+          "median": 0.28929999470710754,
+          "p95": 1.3564000129699707
+        },
+        "callbackLagMs": {
+          "median": 12.876766204833984,
+          "p95": 14.752266883850098
+        }
+      },
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 70.39999999850988,
+      "tickHz": 29.98986038530536,
+      "zone": "Forgotten Crypt",
+      "transitionMs": 275,
+      "metrics": {
+        "objects": "345",
+        "textures": "37",
+        "listeners": "54",
+        "voices": "3",
+        "score": "corrupted-sanctum",
+        "patchHz": "13",
+        "inputSequence": "10",
+        "fps": "56.0"
+      },
+      "heap": 92890756,
+      "receivedBytes": 136955,
+      "network": {
+        "outbound": 47,
+        "meanBytes": 229.79026845637583,
+        "p95Bytes": 1556,
+        "framesPerSecond": 23.361250419546458
+      },
+      "receivedFrames": 596
+    },
+    {
+      "timing": {
+        "count": 256,
+        "stepMs": {
+          "median": 0.2709999978542328,
+          "p95": 1.1584999561309814
+        },
+        "callbackLagMs": {
+          "median": 12.847867012023926,
+          "p95": 14.56386661529541
+        }
+      },
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 70.39999999850988,
+      "tickHz": 29.992034801789107,
+      "zone": "Corrupted Sanctum",
+      "transitionMs": 376,
+      "metrics": {
+        "objects": "368",
+        "textures": "41",
+        "listeners": "54",
+        "voices": "3",
+        "score": "throne-of-the-shadow-overlord",
+        "patchHz": "14",
+        "inputSequence": "10",
+        "fps": "55.1"
+      },
+      "heap": 80219932,
+      "receivedBytes": 197236,
+      "network": {
+        "outbound": 61,
+        "meanBytes": 256.15064935064936,
+        "p95Bytes": 1627,
+        "framesPerSecond": 23.674850221982236
+      },
+      "receivedFrames": 770
+    },
+    {
+      "timing": {
+        "count": 256,
+        "stepMs": {
+          "median": 0.27250000834465027,
+          "p95": 1.1080000400543213
+        },
+        "callbackLagMs": {
+          "median": 12.891166687011719,
+          "p95": 14.735766410827637
+        }
+      },
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 70.39999999850988,
+      "tickHz": 29.996610552479947,
+      "zone": "Throne of the Shadow Overlord",
+      "transitionMs": 280,
+      "metrics": {
+        "objects": "374",
+        "textures": "41",
+        "listeners": "54",
+        "voices": "7",
+        "score": "throne-of-the-shadow-overlord",
+        "patchHz": "13",
+        "inputSequence": "10",
+        "fps": "56.3"
+      },
+      "heap": 89700460,
+      "receivedBytes": 207567,
+      "network": {
+        "outbound": 66,
+        "meanBytes": 245.6414201183432,
+        "p95Bytes": 1602,
+        "framesPerSecond": 23.955135121985123
+      },
+      "receivedFrames": 845
+    }
+  ]
+}

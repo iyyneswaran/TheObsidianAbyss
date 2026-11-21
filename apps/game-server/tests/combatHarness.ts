@@ -1,10 +1,3 @@
-// Polyfill WebSocket for Node < 21 (Colyseus Room internals reference the global)
-import ws from "ws";
-if (typeof globalThis.WebSocket === "undefined") {
-  // @ts-expect-error ws is compatible enough for Colyseus constants
-  globalThis.WebSocket = ws;
-}
-
 import { createServer } from "node:http";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,7 +13,12 @@ import {
   type WorldPoint,
 } from "@obsidian/game-core";
 import { readConfig } from "../src/config/env.js";
-import { createGameServer } from "../src/server.js";
+// The staging controller remains outside both production images and listeners.
+const serverModule =
+  process.env.M7_PRODUCTION === "1" ? "../dist/server.js" : "../src/server.js";
+const { createGameServer } = (await import(
+  serverModule
+)) as typeof import("../src/server.js");
 
 if (process.env.NODE_ENV !== "test" || !process.env.COMBAT_FIXTURE_KEY)
   throw new Error("The Playwright harness is available only in test runs.");
@@ -87,26 +85,27 @@ function pointFor(
             : "overlord"),
   );
   if (!target) return undefined;
-  const options =
-    stage === "boss-party"
-      ? Array.from({ length: 24 }, (_, i) => {
-          const angle =
-            ((i + slot * 6 + Math.floor(run.time / 570)) * Math.PI) / 12;
-          const radius = slot === 3 ? 62 : slot === 0 ? 96 : 172;
-          return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
-        })
-      : [
-          { x: 42, y: 0 },
-          { x: -43, y: 0 },
-          { x: 0, y: 44 },
-          { x: 0, y: -47 },
-          { x: 37, y: 40 },
-          { x: -42, y: -37 },
-          { x: 83, y: 0 },
-          { x: -83, y: 0 },
-          { x: 0, y: 83 },
-          { x: 0, y: -83 },
-        ];
+  const rangedParty =
+    stage === "boss-party" || stage === "guard-fight" || stage === "mage";
+  const options = rangedParty
+    ? Array.from({ length: 24 }, (_, i) => {
+        const angle =
+          ((i + slot * 6 + Math.floor(run.time / 570)) * Math.PI) / 12;
+        const radius = slot === 3 ? 55 : 150;
+        return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
+      })
+    : [
+        { x: 42, y: 0 },
+        { x: -43, y: 0 },
+        { x: 0, y: 44 },
+        { x: 0, y: -47 },
+        { x: 37, y: 40 },
+        { x: -42, y: -37 },
+        { x: 83, y: 0 },
+        { x: -83, y: 0 },
+        { x: 0, y: 83 },
+        { x: 0, y: -83 },
+      ];
   const reachable = options
     .slice(slot)
     .concat(options.slice(0, slot))
@@ -114,7 +113,7 @@ function pointFor(
     .filter(
       (p) => safePoint(run.map, p) && clearSight(run.map, p, target.body),
     );
-  if (stage !== "boss" && stage !== "boss-party") return reachable[0];
+  if (stage !== "boss" && !rangedParty) return reachable[0];
   return (
     reachable.find((p) =>
       [...run.areas.values()].every((area) => {
@@ -161,6 +160,7 @@ const fixture = createServer((req, reply) => {
           view: world.view(),
           time: run.time,
           tick: room!.state.tick,
+          timing: room!.timingSample(),
           phase: run.bossPhase,
           mobs: [...run.monsters.values()]
             .filter((m) => !m.lifetime)
@@ -290,7 +290,10 @@ const fixture = createServer((req, reply) => {
     Object.assign(
       player.body,
       bodyAt(
-        stage === "boss" || stage === "boss-party"
+        stage === "boss" ||
+          stage === "boss-party" ||
+          stage === "guard-fight" ||
+          stage === "mage"
           ? (pointFor(run, stage, player.slot) ?? next)
           : next,
       ),

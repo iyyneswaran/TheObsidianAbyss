@@ -31,6 +31,7 @@ export type DungeonPreview =
   | { mode: "inspect"; rooms: RoomPreview[]; focusRoom: (id: string) => void };
 
 export interface DungeonPreviewEvents {
+  onProgress?: (value: number) => void;
   onReady: (preview: DungeonPreview) => void;
   onError: (error: unknown) => void;
   onDebug: (info: DungeonDebugInfo | null) => void;

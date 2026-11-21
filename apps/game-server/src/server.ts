@@ -85,6 +85,10 @@ export function createGameServer(gracefullyShutdown = true, coop?: CoopConfig) {
   if (coop?.progression) {
     const { db, outbox } = coop.progression;
     server.onShutdown(async () => {
+      if (process.env.NODE_ENV === "production")
+        console.info(
+          JSON.stringify({ event: "service.stopping", service: "game" }),
+        );
       await outbox.close();
       await db.$disconnect();
     });

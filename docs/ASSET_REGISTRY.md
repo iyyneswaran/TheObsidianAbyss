@@ -67,3 +67,7 @@ The wrapper calls the local exporter in a temporary directory and imports the PN
 ## Five-zone expedition
 
 The five expedition sections and packed runtime map reuse the original Obsidian dungeon tile atlas, lighting mask, seven wizard sheets, shadow army sprites and existing effect licenses. The new geometry, floor patterns, passages and trap overlays were authored in this repository. The Shadow Throne includes the original Eclipse arena tiles and boss anchors. See `tools/dungeon/expedition.mjs` for source placement and `apps/web/public/assets/dungeon/` for the editable Tiled JSON.
+
+## Milestone 7 audio and menu art
+
+All six score arrangements, ambience loops and short effects are original synthesis in apps/web/src/audio/sound.ts. The deterministic note sequences, envelopes, oscillators and noise source are authored in this project and distributed with its source. They use no recorded samples or external music. Each wizard ability uses its authoritative effect ID for the cast timbre. The landing page uses a local WebP encoding of the project owner’s supplied Shadow Overlord Enemy Codex artwork. The source image was supplied for this game.

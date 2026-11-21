@@ -1,0 +1,55 @@
+{
+  "cycles": 8,
+  "heapAfterGC": [
+    10796816,
+    11081808,
+    11276000,
+    11398752,
+    11617696,
+    11686844,
+    11739052,
+    11785196
+  ],
+  "counters": [
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    },
+    {
+      "documents": 1,
+      "nodes": 223,
+      "jsEventListeners": 201
+    }
+  ]
+}

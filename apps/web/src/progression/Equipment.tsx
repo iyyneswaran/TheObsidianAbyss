@@ -88,6 +88,7 @@ function WizardSelect({
   );
 }
 
+import { preferences } from "../settings/preferences";
 export function Store() {
   const { data, setData, error, setError } = usePageData<StoreData>("/store");
   const [wizard, setWizard] = useState("");
@@ -298,7 +299,7 @@ export function Vault() {
             <WizardPortrait wizard={wizard} scale={2} />
           </div>
           <label className="mb-4 block text-sm">
-            Skill 3 (R)
+            Skill 3 ({preferences().keys.SKILL_3})
             <select
               className={field}
               value={draft.skill3 ?? ""}
@@ -319,7 +320,7 @@ export function Vault() {
             </select>
           </label>
           <label className="block text-sm">
-            Ultimate (F)
+            Ultimate ({preferences().keys.ULTIMATE})
             <select
               className={field}
               value={draft.ultimate ?? ""}

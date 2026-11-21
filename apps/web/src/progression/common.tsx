@@ -10,7 +10,7 @@ export const panel = "rounded-xl border border-gold/35 bg-panel/90 p-5 sm:p-6";
 export const field =
   "mt-1 w-full rounded border border-iris/40 bg-[#151429] px-3 py-2 text-slate-100";
 
-export function ProgressionNav() {
+export function ProgressionNav({ openSettings }: { openSettings: () => void }) {
   const { pathname } = useLocation();
   const [account, setAccount] = useState("");
   useEffect(() => {
@@ -35,6 +35,7 @@ export function ProgressionNav() {
     ["/store", "Store"],
     ["/vault", "Vault"],
     ["/quests", "Quest Board"],
+    ["/settings", "Settings"],
   ];
   return (
     <nav
@@ -48,6 +49,15 @@ export function ProgressionNav() {
         <NavLink
           key={to}
           to={to!}
+          onClick={(e) => {
+            if (
+              to === "/settings" &&
+              (pathname === "/dungeon/online" || pathname === "/dungeon/play")
+            ) {
+              e.preventDefault();
+              openSettings();
+            }
+          }}
           className={({ isActive }) =>
             isActive ? "text-gold" : "text-slate-300 hover:text-white"
           }

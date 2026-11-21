@@ -89,24 +89,59 @@ let created = false;
 try {
   await schemaCommand('CREATE SCHEMA "' + schema + '"');
   created = true;
-  for (const task of [
-    "db:validate",
-    "db:migrate",
-    "db:seed",
-    "format:check",
-    "typecheck",
-    "lint",
-    "build",
-    "test",
-  ])
-    await run(task);
-  await run(
-    "exec",
-    "playwright",
-    "test",
-    "--config",
-    "playwright.production.config.ts",
-  );
+  if (env.M7_BROWSER_FILTER) {
+    await run("db:migrate");
+    await run("db:seed");
+    await run("exec", "playwright", "test", "--grep", env.M7_BROWSER_FILTER);
+  } else if (["before", "after"].includes(env.M7_BENCH)) {
+    await run("db:migrate");
+    await run("db:seed");
+    await run(
+      "exec",
+      "playwright",
+      "test",
+      "tests/browser/expedition.spec.ts",
+      "--grep",
+      "4 browser seats",
+    );
+  } else {
+    for (const task of [
+      "db:validate",
+      "db:migrate",
+      "db:seed",
+      "format:check",
+      "typecheck",
+      "lint",
+      "build",
+      "test",
+    ])
+      await run(task);
+    await run(
+      "exec",
+      "playwright",
+      "test",
+      "--config",
+      "playwright.production.config.ts",
+    );
+    env.M7_PRODUCTION = "1";
+    await run(
+      "exec",
+      "playwright",
+      "test",
+      "tests/browser/expedition.spec.ts",
+      "--grep",
+      "4 browser seats",
+    );
+    env.M7_SILENT = "1";
+    await run(
+      "exec",
+      "playwright",
+      "test",
+      "tests/browser/expedition.spec.ts",
+      "--grep",
+      "1 browser seats",
+    );
+  }
 } finally {
   try {
     if (created) await schemaCommand('DROP SCHEMA "' + schema + '" CASCADE');

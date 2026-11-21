@@ -1,0 +1,23 @@
+{
+  "metrics": {
+    "objects": "373",
+    "textures": "41",
+    "listeners": "54",
+    "voices": "3",
+    "score": "overlord",
+    "patchHz": "12",
+    "inputSequence": "10",
+    "fps": "54.4"
+  },
+  "timing": {
+    "count": 256,
+    "stepMs": {
+      "median": 0.2709999978542328,
+      "p95": 1.1461000442504883
+    },
+    "callbackLagMs": {
+      "median": 12.983566284179688,
+      "p95": 14.580466270446777
+    }
+  }
+}

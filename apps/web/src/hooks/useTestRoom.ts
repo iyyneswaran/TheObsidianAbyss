@@ -1,5 +1,5 @@
-import { Client, type Room } from "@colyseus/sdk";
-import { localPorts, TEST_ROOM } from "@obsidian/shared";
+import type { Room } from "@colyseus/sdk";
+import { TEST_ROOM } from "@obsidian/shared";
 import { useEffect, useRef, useState } from "react";
 
 type ConnectionStatus =
@@ -11,8 +11,7 @@ interface Connection {
   close?: () => Promise<number>;
 }
 
-const serverUrl =
-  import.meta.env.VITE_GAME_SERVER_URL || `ws://localhost:${localPorts.game}`;
+import { gameBase as serverUrl } from "../endpoints";
 
 export function useTestRoom() {
   const [status, setStatus] = useState<ConnectionStatus>({ kind: "idle" });
@@ -34,6 +33,7 @@ export function useTestRoom() {
     setStatus({ kind: "connecting" });
 
     try {
+      const { Client } = await import("@colyseus/sdk");
       const room: Room = await new Client(serverUrl).joinOrCreate(TEST_ROOM);
       if (current.current !== connection) {
         await room.leave();

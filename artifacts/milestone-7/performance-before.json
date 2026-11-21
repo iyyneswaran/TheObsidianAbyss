@@ -1,0 +1,94 @@
+{
+  "frame": {
+    "count": 2466,
+    "medianMs": 16.69999999999709,
+    "p95Ms": 33.400000000001455
+  },
+  "samples": [
+    {
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 884.4000000357628,
+      "tickHz": 22.942643391521198,
+      "zone": "Forsaken Entrance",
+      "transitionMs": 306,
+      "metrics": {
+        "objects": "505",
+        "textures": "43",
+        "listeners": "53",
+        "fps": "49.8"
+      },
+      "heap": 67004400,
+      "receivedBytes": 23831,
+      "receivedFrames": 182
+    },
+    {
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 884.4000000357628,
+      "tickHz": 23.026632054610133,
+      "zone": "Molten Passages",
+      "transitionMs": 274,
+      "metrics": {
+        "objects": "520",
+        "textures": "36",
+        "listeners": "53",
+        "fps": "54.0"
+      },
+      "heap": 87407272,
+      "receivedBytes": 95620,
+      "receivedFrames": 429
+    },
+    {
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 884.4000000357628,
+      "tickHz": 23.18939136348181,
+      "zone": "Forgotten Crypt",
+      "transitionMs": 333,
+      "metrics": {
+        "objects": "624",
+        "textures": "45",
+        "listeners": "53",
+        "fps": "54.4"
+      },
+      "heap": 69853076,
+      "receivedBytes": 129421,
+      "receivedFrames": 646
+    },
+    {
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 884.4000000357628,
+      "tickHz": 23.170698888559972,
+      "zone": "Corrupted Sanctum",
+      "transitionMs": 408,
+      "metrics": {
+        "objects": "623",
+        "textures": "43",
+        "listeners": "53",
+        "fps": "53.0"
+      },
+      "heap": 88139952,
+      "receivedBytes": 178554,
+      "receivedFrames": 828
+    },
+    {
+      "preloadResources": 57,
+      "preloadBytes": 7607220,
+      "longestAssetMs": 884.4000000357628,
+      "tickHz": 22.13782882549092,
+      "zone": "Throne of the Shadow Overlord",
+      "transitionMs": 361,
+      "metrics": {
+        "objects": "601",
+        "textures": "33",
+        "listeners": "53",
+        "fps": "34.5"
+      },
+      "heap": 79940444,
+      "receivedBytes": 188897,
+      "receivedFrames": 924
+    }
+  ]
+}

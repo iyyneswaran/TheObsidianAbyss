@@ -1,0 +1,70 @@
+x-service-env: &service-env
+  DATABASE_URL: postgresql://obsidian:${POSTGRES_PASSWORD:?supply a URL-safe database password}@postgres:5432/obsidian
+  GUEST_SESSION_SECRET: ${GUEST_SESSION_SECRET:?supply a random signing secret}
+  WEB_ORIGIN: ${WEB_ORIGIN:?set the browser origin}
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    environment:
+      POSTGRES_USER: obsidian
+      POSTGRES_DB: obsidian
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?supply a database password}
+    volumes:
+      - data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U obsidian -d obsidian"]
+      interval: 4s
+      timeout: 4s
+      retries: 20
+  migrate:
+    build: { context: ., target: migrate }
+    environment: *service-env
+    depends_on:
+      postgres: { condition: service_healthy }
+  api:
+    build: { context: ., target: api }
+    environment:
+      <<: *service-env
+      API_PORT: 3001
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health/database').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  game:
+    build: { context: ., target: game }
+    environment:
+      <<: *service-env
+      GAME_PORT: 2567
+      PROGRESSION_OUTBOX_DIRECTORY: /app/outbox
+    volumes: [outbox:/app/outbox]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:2567/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  web:
+    build: { context: ., target: web }
+    ports: ["127.0.0.1:${WEB_PORT:-8080}:8080"]
+    depends_on:
+      api: { condition: service_healthy }
+      game: { condition: service_healthy }
+volumes:
+  data:
+  outbox:

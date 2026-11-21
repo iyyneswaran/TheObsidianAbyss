@@ -15,3 +15,7 @@ Versions below were verified on the Milestone 0 Windows workspace. Transitive ve
 | Asset source           | PixelFX 0.3.1, used locally for export                                                                                  |
 
 Milestone 5 adds Prisma Client and CLI 6.19.3. The Compose file selects PostgreSQL 17. The Windows integration and browser runs used native PostgreSQL 18.7 on loopback. Node's built-in crypto module supplies scrypt and opaque account session tokens.
+
+## Release tooling
+
+The client uses the native Web Audio API with mono PCM generated on demand. Local preferences use the browser Storage API. GitHub Actions runs the release gate on Node 24 with the pinned workspace package manager. Docker Compose packages the frontend with NGINX and runs Fastify, Colyseus, PostgreSQL and a migration job.

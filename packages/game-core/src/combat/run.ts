@@ -274,6 +274,7 @@ export class CombatRun {
     const visual = ability.shape === "projectile" ? undefined : ability.fx;
     this.emit("cast", target.point, {
       source: id,
+      sound: ability.fx,
       angle: angleTo(origin, target.point),
       ...(visual ? { fx: visual } : {}),
       ...(target.actor ? { target: target.actor.id } : {}),
@@ -723,6 +724,11 @@ export class CombatRun {
       if (!shield.power) this.removeStatus(target, "Shielded");
     }
     if (player && realAttack && incoming > amount) {
+      this.emit("block", target.body, {
+        source,
+        target: target.id,
+        amount: incoming - amount,
+      });
       player.mitigation += incoming - amount;
       this.credit(player, "mitigate", incoming - amount);
     }

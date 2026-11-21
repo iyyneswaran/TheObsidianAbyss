@@ -1,7 +1,4 @@
-import { localPorts } from "@obsidian/shared";
-
-const origin =
-  import.meta.env.VITE_API_URL || `http://localhost:${localPorts.api}`;
+import { apiUrl } from "../endpoints";
 
 export class ApiError extends Error {
   constructor(
@@ -13,7 +10,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, body?: object): Promise<T> {
-  const response = await fetch(new URL(path, origin), {
+  const response = await fetch(apiUrl(path), {
     credentials: "include",
     signal: AbortSignal.timeout(10000),
     ...(body

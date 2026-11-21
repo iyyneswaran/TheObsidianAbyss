@@ -9,6 +9,7 @@ import {
 import type { DungeonDebugInfo, DungeonPreview } from "../game/dungeon/preview";
 import { usePhaserStage } from "../hooks/usePhaserStage";
 
+import { preferences } from "../settings/preferences";
 export function PlayDungeon() {
   const wizard = readWizardSelection(useLocation().state);
   return wizard ? (
@@ -19,6 +20,7 @@ export function PlayDungeon() {
 }
 
 export function Dungeon({ wizard }: { wizard?: WizardClass }) {
+  const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<DungeonPreview>();
   const [debug, setDebug] = useState<DungeonDebugInfo | null>(null);
   const [error, setError] = useState(false);
@@ -32,6 +34,9 @@ export function Dungeon({ wizard }: { wizard?: WizardClass }) {
         createDungeonGame(
           parent,
           {
+            onProgress(value) {
+              if (isActive()) setProgress(value);
+            },
             onReady(data) {
               if (isActive()) setPreview(data);
             },
@@ -103,12 +108,16 @@ export function Dungeon({ wizard }: { wizard?: WizardClass }) {
             ))}
           {!preview && !error && (
             <p role="status" className="px-1 text-sm text-slate-300">
-              Loading dungeon…
+              Loading dungeon…{" "}
+              <progress aria-label="Dungeon assets" value={progress} max={1} />
             </p>
           )}
           {error && (
             <p role="alert" className="px-1 text-sm text-rose-200">
-              The dungeon could not load. Reload this page to try again.
+              The dungeon could not load.{" "}
+              <button className="action" onClick={() => location.reload()}>
+                Retry loading
+              </button>
             </p>
           )}
         </nav>
@@ -119,7 +128,12 @@ export function Dungeon({ wizard }: { wizard?: WizardClass }) {
           data-testid="dungeon-stage"
         />
         <p className="border-t border-gold/25 bg-panel/80 px-4 py-3 text-sm text-slate-300">
-          <kbd>WASD</kbd> or <kbd>arrows</kbd> to {wizard ? "move" : "pan"}{" "}
+          <kbd>
+            {(["up", "left", "down", "right"] as const)
+              .map((k) => preferences().keys[k])
+              .join("")}
+          </kbd>{" "}
+          or <kbd>arrows</kbd> to {wizard ? "move" : "pan"}{" "}
           <span aria-hidden="true">·</span> Scroll over the map to zoom{" "}
           {!wizard && (
             <>

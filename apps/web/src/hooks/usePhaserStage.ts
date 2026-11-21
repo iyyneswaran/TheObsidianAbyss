@@ -16,6 +16,7 @@ export function usePhaserStage(
   const parent = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const abort = new AbortController();
     let active = true;
     let frame = 0;
     let game: Phaser.Game | undefined;
@@ -31,6 +32,11 @@ export function usePhaserStage(
           if (!active || !parent.current) return;
           try {
             game = create(parent.current);
+            parent.current.addEventListener(
+              "webglcontextlost",
+              () => fail(new Error("Graphics context lost.")),
+              { once: true, capture: true, signal: abort.signal },
+            );
           } catch (error) {
             fail(error);
           }
@@ -39,6 +45,7 @@ export function usePhaserStage(
       .catch(fail);
 
     return () => {
+      abort.abort();
       active = false;
       cancelAnimationFrame(frame);
       onDispose?.();

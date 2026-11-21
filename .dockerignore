@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/tests
+tests
+docs
+.github
+*.md
+packages/progression/generated
+.git
+.env*
+.guest-key
+.postgres-test
+.progression-outbox
+artifacts
+test-results
+playwright-report
+*.log

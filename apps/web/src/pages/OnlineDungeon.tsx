@@ -17,7 +17,10 @@ const labels = {
   disconnected: "Disconnected",
 };
 
+import { preferences } from "../settings/preferences";
 function OnlineStage() {
+  const { keys } = preferences();
+  const [progress, setProgress] = useState(0);
   const { exploration } = useParty();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
@@ -31,6 +34,9 @@ function OnlineStage() {
         createDungeonGame(
           parent,
           {
+            onProgress(value) {
+              if (isActive()) setProgress(value);
+            },
             onReady() {
               if (isActive()) setReady(true);
             },
@@ -52,11 +58,17 @@ function OnlineStage() {
   return (
     <>
       {!ready && !error && (
-        <p className="mt-3 text-sm text-slate-300">Loading the dungeon…</p>
+        <p className="mt-3 text-sm text-slate-300">
+          Loading the dungeon…{" "}
+          <progress aria-label="Dungeon assets" max={1} value={progress} />
+        </p>
       )}
       {error && (
         <p role="alert" className="mt-3 text-rose-200">
-          The dungeon could not load. Reopen this page to reconnect.
+          The dungeon could not load.{" "}
+          <button className="action" onClick={() => location.reload()}>
+            Retry connection
+          </button>
         </p>
       )}
       <div className="relative mt-5 overflow-hidden rounded-xl border border-gold/40 bg-[#130e1c]">
@@ -69,8 +81,12 @@ function OnlineStage() {
         />
         {exploration && <ExpeditionMap exploration={exploration} />}
         <p className="border-t border-gold/25 bg-panel px-4 py-3 text-sm text-slate-300">
-          WASD or arrows to move · Left click to attack · Q / E / R / F to cast
-          · G to interact · Scroll to zoom
+          {[keys.up, keys.left, keys.down, keys.right].join("")} or arrows to
+          move · Left click or {keys.BASIC} to attack ·{" "}
+          {[keys.SKILL_1, keys.SKILL_2, keys.SKILL_3, keys.ULTIMATE].join(
+            " / ",
+          )}{" "}
+          to cast · {keys.interact} to interact · Scroll to zoom
           {import.meta.env.DEV && " · F3 for debug"}
         </p>
       </div>

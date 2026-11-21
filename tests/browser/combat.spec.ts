@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import {
@@ -24,7 +25,20 @@ const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function capture(page: Page, file: string) {
-  await page.screenshot({ path: artifacts + file + ".png", fullPage: true });
+  const ids: Record<string, string> = {
+    "four-player-combat": "four-player-hud",
+    "fire-combat": "combat-feedback",
+    "boss-phase-3": "boss-phase-3",
+    "victory-screen": "victory-screen-polished",
+    "spectator-mode": "spectator-mode-polished",
+    "defeat-screen": "defeat-screen-polished",
+  };
+  const screenshot = await page.screenshot({
+    path: artifacts + file + ".png",
+    fullPage: true,
+  });
+  if (ids[file])
+    await writeFile("artifacts/milestone-7/" + ids[file] + ".png", screenshot);
 }
 
 async function stage(page: Page, code: string, area: string, slot?: number) {
@@ -65,8 +79,12 @@ async function stage(page: Page, code: string, area: string, slot?: number) {
   return players;
 }
 
-async function aim(page: Page, target: ReturnType<Page["locator"]>) {
-  await page.bringToFront();
+async function aim(
+  page: Page,
+  target: ReturnType<Page["locator"]>,
+  foreground = true,
+) {
+  if (foreground) await page.bringToFront();
   await canvas(page).scrollIntoViewIfNeeded();
   const bounds = (await canvas(page).boundingBox())!;
   const camera = page.getByTestId("combat-camera");
@@ -102,30 +120,31 @@ async function fire(page: Page, count = 1) {
 }
 
 async function killRegular(
-  page: Page,
+  team: Awaited<ReturnType<typeof getTeam>>,
   kind: string,
-  code: string,
   region: string,
 ) {
-  await stage(page, code, region, 0);
-  const enemy = mob(page, kind);
-  await expect(
-    enemy,
-    "Encounter should activate after staging " + region,
-  ).toHaveCount(1);
-  await aim(page, enemy);
-  await page.keyboard.press("e");
-  await fire(page, 2);
-  for (let attempt = 0; attempt < 10 && (await enemy.count()); attempt++) {
-    const engagement = kind === "mage" ? "mage" : "guard-fight";
-    if (
-      !(await stage(page, code, engagement, 0)).length ||
-      !(await aim(page, enemy))
-    )
-      break;
-    await page.keyboard.press("q");
-    await page.keyboard.press("e");
-    await fire(page, 2);
+  const { leader, code, pages } = team;
+  await stage(leader, code, region);
+  const enemy = mob(leader, kind);
+  await expect(enemy).toHaveCount(1);
+  const engagement = kind === "mage" ? "mage" : "guard-fight";
+  for (let round = 0; round < 20 && (await enemy.count()); round++) {
+    const members = await stage(leader, code, engagement);
+    if (!members.length) break;
+    await Promise.all(
+      pages.map(async (page, index) => {
+        if (!members.some((p) => p.slot === index && p.hp > 0)) return;
+        if (!(await aim(page, mob(page, kind), false))) return;
+        if (index === 2) {
+          await page.keyboard.press("e");
+          await page.keyboard.press("f");
+        }
+        await page.keyboard.press("q");
+        await page.mouse.down();
+        await page.mouse.up();
+      }),
+    );
   }
   await expect(enemy).toHaveCount(0);
 }
@@ -176,8 +195,8 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
   await fire(a, 8);
   await expect(shadow).toHaveCount(0);
 
-  await killRegular(a, "lava", code, "guard");
-  await killRegular(a, "mage", code, "approach");
+  await killRegular(team, "lava", "guard");
+  await killRegular(team, "mage", "approach");
   await stage(a, code, "bridge-entry", 0);
   await a.bringToFront();
   const row = a.getByTestId("online-actor").filter({ hasText: "fire" });
@@ -223,6 +242,7 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
   await expect(hud).toContainText("The Watcher");
   await capture(a, "boss-phase-1");
 
+  let telegraphCaptured = false;
   for (const phase of [2, 3, 4]) {
     for (let round = 0; round < 22; round++) {
       const visiblePhase = Number(
@@ -230,30 +250,28 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
       );
       if (visiblePhase >= phase) break;
       const team = await stage(a, code, "boss-party");
-      if (!team.length) break;
-      for (const [index, keys] of [
-        [3, ["q", "f", "r"]],
-        [2, ["e", "f", "q"]],
-        [1, ["q", "r", "f"]],
-        [0, ["e", "f"]],
-      ] as const) {
-        if (
-          Number(
-            await hud
-              .getAttribute("data-phase", { timeout: 400 })
-              .catch(() => "4"),
-          ) >= phase
-        )
-          break;
-        const page = pages[index]!;
-        const target = mob(page, "overlord");
-        if (!team.some((player) => player.slot === index && player.hp > 0))
-          continue;
-        if (!(await aim(page, target))) break;
-        for (const key of keys) await page.keyboard.press(key);
-        await page.mouse.down();
-        await page.mouse.up();
+      if (
+        !telegraphCaptured &&
+        (await a.getByTestId("boss-warning").isVisible())
+      ) {
+        telegraphCaptured = true;
+        await a.screenshot({
+          path: "artifacts/milestone-7/boss-telegraph.png",
+        });
       }
+      if (!team.length) break;
+      // Keep all four browsers acting during the same attack window.
+      await Promise.all(
+        pages.map(async (page, index) => {
+          if (!team.some((player) => player.slot === index && player.hp > 0))
+            return;
+          if (!(await aim(page, mob(page, "overlord"), false))) return;
+          for (const key of ["q", "e", "r", "f"])
+            await page.keyboard.press(key);
+          await page.mouse.down();
+          await page.mouse.up();
+        }),
+      );
     }
     if (phase < 4) {
       for (const page of pages)

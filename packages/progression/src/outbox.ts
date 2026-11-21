@@ -28,6 +28,7 @@ export class ProgressionOutbox {
   private readonly memory = new Map<string, string>();
   private writing?: Promise<void> | undefined;
   private closed = false;
+  private retrying = false;
 
   constructor(
     private readonly db: PrismaClient,
@@ -47,7 +48,17 @@ export class ProgressionOutbox {
   async flush() {
     if (this.closed) return;
     this.running ??= this.drain()
+      .then(() => {
+        if (this.retrying && process.env.NODE_ENV === "production")
+          console.info(
+            JSON.stringify({ event: "progression.outbox.recovered" }),
+          );
+        this.retrying = false;
+      })
       .catch(() => {
+        if (!this.retrying && process.env.NODE_ENV === "production")
+          console.warn(JSON.stringify({ event: "progression.outbox.retry" }));
+        this.retrying = true;
         // Keep the unprocessed files on disk for the next interval.
       })
       .finally(() => {

@@ -1,0 +1,60 @@
+name: Verify dungeon release
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: obsidian_test
+          POSTGRES_USER: obsidian
+          POSTGRES_PASSWORD: temporary_ci_password
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 4s --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgresql://obsidian:temporary_ci_password@127.0.0.1:5432/obsidian_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm install -g pnpm@12.18.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Validate source, database, gameplay and production services
+        run: pnpm verify:progression
+      - name: Export redacted browser action timings
+        if: failure()
+        run: python3 tools/ci-evidence.py
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-evidence
+          path: |
+            artifacts/milestone-7/*.png
+            artifacts/milestone-7/*.json
+            test-results/**/*.png
+            test-results/action-timings.json
+          retention-days: 7
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm install -g pnpm@12.18.0 && pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: node tools/verify-containers.mjs

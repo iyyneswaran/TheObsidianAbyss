@@ -1,3 +1,4 @@
+import { fixedClock } from "../party/fixedClock.js";
 import { randomUUID } from "node:crypto";
 import { matchMaker, Room, ServerError, type Client } from "@colyseus/core";
 import { lockedEquipment } from "@obsidian/progression";
@@ -71,6 +72,24 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
   private members = new Map<string, Member>();
   private run?: CombatRun;
   private progression?: RunProgression;
+  private readonly stepCosts = new Float32Array(256);
+  private readonly callbackLags = new Float32Array(256);
+  private profileSamples = 0;
+  timingSample() {
+    const n = Math.min(this.profileSamples, this.stepCosts.length);
+    const percentiles = (buffer: Float32Array) => {
+      const data = buffer.slice(0, n).sort();
+      return {
+        median: data[Math.floor(n * 0.5)] ?? 0,
+        p95: data[Math.floor(n * 0.95)] ?? 0,
+      };
+    };
+    return {
+      count: n,
+      stepMs: percentiles(this.stepCosts),
+      callbackLagMs: percentiles(this.callbackLags),
+    };
+  }
 
   static override async onAuth() {
     throw new ServerError(4215, "Use private team entry.");
@@ -90,7 +109,43 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     await this.setPrivate(true);
     this.seatReservationTimeout = seatTimeout;
     this.patchRate = 1000 / PATCH_HZ;
-    this.setSimulationInterval(() => this.simulate(), stepMs);
+    const fixed = fixedClock(stepMs, () => this.simulate());
+    let wall = performance.now(),
+      ticks = 0,
+      cost = 0,
+      period = wall;
+    this.setSimulationInterval(() => {
+      const now = performance.now(),
+        active = this.state.phase === "ACTIVE";
+      const elapsed = now - wall;
+      const count = fixed(elapsed);
+      wall = now;
+      if (active) {
+        ticks += count;
+        const duration = performance.now() - now;
+        cost += duration;
+        if (count) {
+          const index = this.profileSamples++ % this.stepCosts.length;
+          this.stepCosts[index] = duration / count;
+          this.callbackLags[index] = Math.max(0, elapsed - stepMs);
+        }
+      }
+      if (now - period >= 30000) {
+        if (ticks && process.env.NODE_ENV === "production")
+          console.info(
+            JSON.stringify({
+              event: "simulation.sample",
+              room: this.roomId,
+              ticks,
+              meanStepMs: cost / ticks,
+              intervalMs: now - period,
+            }),
+          );
+        period = now;
+        ticks = cost = 0;
+      }
+    }, stepMs);
+    this.logEvent("room.created");
 
     this.onMessage("move", (client, message: unknown) => {
       const member = this.owner(client);
@@ -145,6 +200,10 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
     );
   }
 
+  private logEvent(event: string) {
+    if (process.env.NODE_ENV === "production")
+      console.info(JSON.stringify({ event, room: this.roomId }));
+  }
   hasGuest(guestId: string) {
     return [...this.members.values(), ...this.pending.values()].some(
       (member) => member.guestId === guestId,
@@ -278,6 +337,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
   }
 
   override onDrop(client: Client) {
+    this.logEvent("seat.disconnected");
     const member = this.owner(client);
     if (!member) return;
     const now = Date.now();
@@ -306,6 +366,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
   }
 
   override onReconnect(client: Client) {
+    this.logEvent("seat.reconnected");
     const member = this.members.get(client.sessionId);
     if (!member?.disconnected)
       throw new ServerError(4216, "The original seat is unavailable.");
@@ -330,13 +391,17 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
         .sort((a, b) => a.slot - b.slot)[0];
       this.state.leaderId = next?.playerId ?? "";
     }
-    if (!this.members.size && this.state.phase !== "LOBBY")
+    if (!this.members.size && this.state.phase !== "LOBBY") {
+      this.logEvent("session.ended");
       this.state.phase = "ENDED";
+    }
   }
 
   override onDispose() {
+    this.logEvent("room.closed");
     this.finishRun();
     this.progression?.flush();
+    this.logEvent("session.ended");
     this.state.phase = "ENDED";
     this.options.directory.rooms.delete(this.state.code);
   }
@@ -452,6 +517,7 @@ export class CoopDungeonRoom extends Room<{ state: CoopState }> {
 
   private finishRun() {
     if (!this.run?.result || this.state.phase === "ENDED") return;
+    this.logEvent("session.ended");
     this.state.phase = "ENDED";
     this.state.combat.result = JSON.stringify(this.run.result);
     const progression = this.progression;

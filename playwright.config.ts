@@ -20,16 +20,25 @@ const coopEnv = {
   GUEST_SESSION_SECRET: randomBytes(32).toString("hex"),
   WEB_ORIGIN: webUrl,
 };
+const built = process.env.M7_PRODUCTION === "1";
 const channel = process.env.PLAYWRIGHT_CHANNEL;
 
 export default defineConfig({
   testDir: "./tests/browser",
   // Each co-op scenario already runs up to four independent WebGL contexts.
   workers: 1,
-  use: { baseURL: webUrl, ...(channel ? { channel } : {}) },
+  use: {
+    baseURL: webUrl,
+    trace: process.env.CI ? "retain-on-failure" : "off",
+    screenshot: "only-on-failure",
+    ...(channel ? { channel } : {}),
+  },
   webServer: [
     {
-      command: "pnpm --filter @obsidian/web dev",
+      command: built
+        ? "pnpm --filter @obsidian/web exec vite preview --host 127.0.0.1 --strictPort --port " +
+          webPort
+        : "pnpm --filter @obsidian/web dev",
       env: {
         VITE_API_URL: apiUrl,
         VITE_GAME_SERVER_URL: `ws://localhost:${gamePort}`,
@@ -38,8 +47,9 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command:
-        "pnpm --filter @obsidian/game-server exec tsx --conditions=development tests/combatHarness.ts",
+      command: built
+        ? "pnpm --filter @obsidian/game-server exec tsx tests/combatHarness.ts"
+        : "pnpm --filter @obsidian/game-server exec tsx --conditions=development tests/combatHarness.ts",
       port: Number(gamePort),
       env: {
         ...coopEnv,
@@ -50,8 +60,9 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command:
-        "pnpm --filter @obsidian/api exec tsx --conditions=development src/index.ts",
+      command: built
+        ? "node apps/api/dist/index.js"
+        : "pnpm --filter @obsidian/api exec tsx --conditions=development src/index.ts",
       url: `${apiUrl}/health`,
       env: coopEnv,
       reuseExistingServer: false,

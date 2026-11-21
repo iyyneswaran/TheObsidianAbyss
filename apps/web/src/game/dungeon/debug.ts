@@ -25,11 +25,18 @@ const options = {
   room_connection: 0x60a38e,
 } as Record<string, number>;
 
-function drawDungeonDebug(scene: Phaser.Scene, map: DungeonMap) {
-  const graphics = scene.add.graphics().setDepth(100);
+function drawDungeonDebug(
+  graphics: Phaser.GameObjects.Graphics,
+  map: DungeonMap,
+  leftTile: number,
+  topTile: number,
+  rightTile: number,
+  bottomTile: number,
+) {
+  graphics.clear();
   const { tileWidth, tileHeight } = map;
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
+  for (let y = topTile; y < bottomTile; y++) {
+    for (let x = leftTile; x < rightTile; x++) {
       const { terrain } = map.atTile(x, y);
       if (terrain !== "solid" && terrain !== "lava") continue;
       const left = x * tileWidth;
@@ -54,12 +61,18 @@ function drawDungeonDebug(scene: Phaser.Scene, map: DungeonMap) {
 
   for (const zone of map.zones) {
     const color = options[zone.kind];
-    if (color === undefined) continue;
+    if (
+      color === undefined ||
+      zone.x + zone.width < leftTile * tileWidth ||
+      zone.x > rightTile * tileWidth ||
+      zone.y + zone.height < topTile * tileHeight ||
+      zone.y > bottomTile * tileHeight
+    )
+      continue;
     graphics
       .lineStyle(2, color, 0.78)
       .strokeRect(zone.x, zone.y, zone.width, zone.height);
   }
-  return graphics;
 }
 
 export function setupDungeonDebug(
@@ -76,14 +89,15 @@ export function setupDungeonDebug(
   let footprint: Phaser.GameObjects.Rectangle | undefined;
   let enabled = false;
   let nextSample = 0;
+  let visibleBucket = "";
   const point = new Phaser.Math.Vector2();
   const zoneNames = ({ x, y }: WorldPoint) =>
     map
       .zonesAt(x, y)
       .map(({ id }) => id)
-      .join(", ") || "—";
+      .join(", ") || "â€”";
   const roomAt = ({ x, y }: WorldPoint) =>
-    map.zonesAt(x, y).find(({ kind }) => kind === "room")?.id ?? "—";
+    map.zonesAt(x, y).find(({ kind }) => kind === "room")?.id ?? "â€”";
   const tileAt = ({ x, y }: WorldPoint) => {
     const tile = map.worldToTile(x, y);
     return `${tile.x}, ${tile.y}`;
@@ -93,7 +107,7 @@ export function setupDungeonDebug(
     ?.addKey(Phaser.Input.Keyboard.KeyCodes.F3)
     .on("down", () => {
       enabled = !enabled;
-      overlay ??= drawDungeonDebug(scene, map);
+      overlay ??= scene.add.graphics().setDepth(100);
       overlay.setVisible(enabled);
       if ((player || online) && !footprint) {
         footprint = scene.add
@@ -106,8 +120,33 @@ export function setupDungeonDebug(
       if (!enabled) publish(null);
     });
 
-  return (elapsed: number, combat?: OnlineDebugInfo["combat"]) => {
-    if (!enabled) return;
+  return (
+    elapsed: number,
+    combat?: () => NonNullable<OnlineDebugInfo["combat"]>,
+  ) => {
+    if (!enabled || !overlay) return;
+    const viewRect = camera.worldView;
+    const left = Math.max(
+      0,
+      Math.floor(viewRect.left / (map.tileWidth * 8)) * 8,
+    );
+    const top = Math.max(
+      0,
+      Math.floor(viewRect.top / (map.tileHeight * 8)) * 8,
+    );
+    const right = Math.min(
+      map.width,
+      Math.ceil(viewRect.right / (map.tileWidth * 8)) * 8,
+    );
+    const bottom = Math.min(
+      map.height,
+      Math.ceil(viewRect.bottom / (map.tileHeight * 8)) * 8,
+    );
+    const bucket = [left, top, right, bottom].join("/");
+    if (bucket !== visibleBucket) {
+      visibleBucket = bucket;
+      drawDungeonDebug(overlay, map, left, top, right, bottom);
+    }
     const transform = player?.transform;
     const rendered = transform ?? online?.localPosition;
     if (rendered) footprint?.setPosition(rendered.x, rendered.y);
@@ -125,12 +164,17 @@ export function setupDungeonDebug(
       zoom: center.zoom,
       worldWidth: map.worldWidth,
       worldHeight: map.worldHeight,
-      tile: hovered ? tileAt(point) : "—",
+      tile: hovered ? tileAt(point) : "â€”",
       terrain: map.atWorld(point.x, point.y).terrain,
       room: roomAt(center),
       zones: zoneNames(point),
       ...(online
-        ? { online: { ...online.sample(), ...(combat ? { combat } : {}) } }
+        ? {
+            online: {
+              ...online.sample(),
+              ...(combat ? { combat: combat() } : {}),
+            },
+          }
         : {}),
       ...(wizard && player && transform
         ? {

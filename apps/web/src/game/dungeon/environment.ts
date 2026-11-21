@@ -121,7 +121,10 @@ export function createEnvironment(
     );
   }
 
+  let nextUpdate = 0;
   return (elapsed: number) => {
+    if (elapsed < nextUpdate) return;
+    nextUpdate = elapsed + 50;
     for (const clip of clips.values()) {
       const frame = clip.frames.find(
         ({ until }) => elapsed % clip.duration < until,
@@ -131,6 +134,7 @@ export function createEnvironment(
       for (const tile of clip.tiles) tile.index = frame.gid;
     }
     for (const { image, phase, alpha, amplitude, speed } of lights) {
+      if (!scene.cameras.main.worldView.contains(image.x, image.y)) continue;
       image.setAlpha(alpha + Math.sin(elapsed * speed + phase) * amplitude);
     }
   };

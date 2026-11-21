@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { wizards } from "@obsidian/game-assets";
 import type { PartySnapshot } from "../multiplayer/party";
 
-const shortcuts = ["LMB", "Q", "E", "R", "F"];
+import { preferences } from "../settings/preferences";
 const bossPhases = ["", "The Watcher", "The Summoner", "Eclipse"];
 
 function Meter({
@@ -177,7 +177,16 @@ export function CombatHud({
                       />
                     )}
                     <div className="relative flex justify-between gap-1">
-                      <kbd className="text-iris">{shortcuts[i]}</kbd>
+                      <span
+                        aria-hidden="true"
+                        style={{ color: wizards[member.wizard].primaryColor }}
+                      >
+                        {["✦", "✧", "◈", "✹", "✵"][i]}
+                      </span>
+                      <kbd className="text-iris">
+                        {slot === "BASIC" ? "LMB / " : ""}
+                        {preferences().keys[slot]}
+                      </kbd>
                       <span
                         className={depleted ? "text-rose-200" : "text-sky-200"}
                       >

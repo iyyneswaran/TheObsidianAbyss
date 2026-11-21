@@ -74,3 +74,7 @@ The Playwright suite starts the API, game server, and web app on loopback and us
 ## Five-zone expedition
 
 New private teams default to the five-zone expedition. Select **Classic dungeon** for the original co-op arena. Press G near a mechanism or passage and M for the expanded expedition map. Use `pnpm exec vitest run packages/game-core/tests/expedition.test.ts` for connectivity and deterministic walkthroughs. The release suite also exercises the real four-browser route. See [Milestone 6](milestone-6.md) for the Windows database and release commands.
+
+## Release validation
+
+Set TEST_DATABASE_URL to a disposable test-named database and run pnpm verify:progression. The runner creates a unique schema and removes it in a finally block. For a focused four-client comparison set M7_BENCH to before or after and invoke the same runner. Clear the variable for the complete release gate. Built-service tests use the existing loopback-only staging controller. See [container verification](DEPLOYMENT.md).
