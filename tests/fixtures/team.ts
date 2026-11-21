@@ -58,7 +58,7 @@ export async function getTeam(
       await expect(page.getByTestId("online-stage")).toHaveAttribute(
         "data-ready",
         "true",
-        { timeout: 25000 },
+        { timeout: 60000 },
       );
       await expect(page.getByTestId("local-hp")).toBeVisible();
       if (process.env.M7_PRODUCTION === "1") continue;

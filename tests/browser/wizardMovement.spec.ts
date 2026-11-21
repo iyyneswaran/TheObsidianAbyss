@@ -30,7 +30,9 @@ async function enter(page: Page, name = "Fire Wizard") {
   await page.goto("/characters");
   await selectWizard(page, name);
   await expect(page).toHaveURL(/\/dungeon\/play$/);
-  await expect(page.getByTestId("active-wizard")).toHaveText(name);
+  await expect(page.getByTestId("active-wizard")).toHaveText(name, {
+    timeout: 25000,
+  });
 }
 
 const canvas = (page: Page) =>

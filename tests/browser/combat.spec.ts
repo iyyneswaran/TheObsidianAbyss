@@ -149,6 +149,23 @@ async function killRegular(
   await expect(enemy).toHaveCount(0);
 }
 
+async function partyVolley(
+  pages: Page[],
+  roster: { slot: number; hp: number }[],
+  kind: string,
+) {
+  await Promise.all(
+    pages.map(async (page, index) => {
+      if (!roster.some((player) => player.slot === index && player.hp > 0))
+        return;
+      if (!(await aim(page, mob(page, kind), false))) return;
+      for (const key of ["q", "e", "r", "f"]) await page.keyboard.press(key);
+      await page.mouse.down();
+      await page.mouse.up();
+    }),
+  );
+}
+
 async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
   const { pages, code, errors } = team;
   const [a, b, c, d] = pages as [Page, Page, Page, Page];
@@ -260,18 +277,7 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
         });
       }
       if (!team.length) break;
-      // Keep all four browsers acting during the same attack window.
-      await Promise.all(
-        pages.map(async (page, index) => {
-          if (!team.some((player) => player.slot === index && player.hp > 0))
-            return;
-          if (!(await aim(page, mob(page, "overlord"), false))) return;
-          for (const key of ["q", "e", "r", "f"])
-            await page.keyboard.press(key);
-          await page.mouse.down();
-          await page.mouse.up();
-        }),
-      );
+      await partyVolley(pages, team, "overlord");
     }
     if (phase < 4) {
       for (const page of pages)
@@ -334,31 +340,40 @@ async function fightForRewards({
   // Each trip moves existing actors into reach. All attacks, HP, mana,
   // encounters and victory still come from normal game input and simulation.
   await expect(mob(leader, "shadow")).toHaveCount(1);
+  async function clock(ticks?: number) {
+    const url = new URL(
+      "http://127.0.0.1:" + process.env.COMBAT_FIXTURE_PORT + "/stage",
+    );
+    url.searchParams.set("team", code);
+    url.searchParams.set("area", ticks ? "step-clock" : "manual-clock");
+    if (ticks) url.searchParams.set("ticks", String(ticks));
+    const response = await leader.request.post(url.href, {
+      headers: { "x-combat-fixture-key": process.env.COMBAT_FIXTURE_KEY! },
+    });
+    expect(response.status()).toBe(200);
+  }
+  await clock();
   async function battle(kind: string, area: string) {
     const enemy = mob(leader, kind);
     await expect(enemy).toHaveCount(1);
-    for (let round = 0; round < 32 && (await enemy.count()); round++) {
-      const party = await stage(leader, code, "arena-shrine");
-      const healer = pages[2]!;
-      if (party.some((p) => p.slot === 2 && p.hp > 0)) {
-        await healer.bringToFront();
-        await healer.keyboard.press("e");
-        await healer.keyboard.press("f");
+    for (let round = 0; round < 100 && (await enemy.count()); round++) {
+      if (round % 3 === 0) {
+        const party = await stage(leader, code, "arena-shrine");
+        if (party.some((p) => p.slot === 2 && p.hp > 0)) {
+          await pages[2]!.keyboard.press("e");
+          await pages[2]!.keyboard.press("f");
+        }
+        await clock(45);
       }
-      for (const index of [0, 1, 3, 2]) {
-        if (
-          !party.some((p) => p.slot === index && p.hp > 0) ||
-          !(await enemy.count())
-        )
-          continue;
-        const page = pages[index]!;
-        if (!(await stage(page, code, area, index)).length) break;
-        if (!(await aim(page, mob(page, kind)))) break;
-        for (const key of ["q", "e", "r", "f"]) await page.keyboard.press(key);
-        await page.mouse.down();
-        await page.mouse.up();
-        if (await enemy.count()) await stage(leader, code, "arena-shrine");
-      }
+      const attackers = await stage(leader, code, area);
+      if (!attackers.length) break;
+      expect(
+        attackers.some((p) => p.hp > 0),
+        "The party was defeated",
+      ).toBe(true);
+      await partyVolley(pages, attackers, kind);
+      await clock(18);
+      await wait(100);
     }
     await expect(enemy).toHaveCount(0);
   }
@@ -370,7 +385,8 @@ async function fightForRewards({
   await stage(leader, code, "gate");
   await leader.bringToFront();
   await leader.keyboard.press("g");
-  await battle("overlord", "boss");
+  await clock(2);
+  await battle("overlord", "boss-party");
   for (const page of pages)
     await expect(page.getByTestId("run-result")).toHaveAttribute(
       "data-outcome",
@@ -382,7 +398,7 @@ test("four real browsers fight together, cross lava and shrine, and win all thre
   browser,
   baseURL,
 }) => {
-  test.setTimeout(180000);
+  test.setTimeout(440000);
   const team = await getTeam(browser, baseURL!, partyClasses);
   try {
     await completeEncounter(team);

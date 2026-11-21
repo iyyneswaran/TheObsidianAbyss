@@ -846,6 +846,10 @@ for (const [id, drawFn] of Object.entries(drawFunctions)) {
   writeFileSync(new URL(id + ".png", output), png(sheet));
 }
 
+const icon = surface(size, size);
+drawOverlord(painter(icon, 0, 0, size), 0, 0);
+writeFileSync(new URL("../../favicon.png", output), png(icon));
+
 console.log(
   "Monster sprites generated:",
   Object.keys(drawFunctions).join(", "),

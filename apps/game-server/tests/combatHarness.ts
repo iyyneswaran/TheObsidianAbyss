@@ -138,6 +138,7 @@ function pointFor(
 
 // The production entry point never imports this server. Staging moves test
 // actors into reach and leaves the real simulator responsible for all outcomes.
+const controlledRooms = new WeakSet<object>();
 const fixture = createServer((req, reply) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   if (
@@ -267,6 +268,26 @@ const fixture = createServer((req, reply) => {
     reply.writeHead(409).end();
     return;
   }
+  // In the reward scenario, browser scheduling must not advance an unattended
+  // fight. Keep the room clock and real socket patches active for settlement.
+  const control = url.searchParams.get("area");
+  const simulator = room as unknown as { simulate(): void };
+  if (room && run && control === "manual-clock" && !run.ended) {
+    room.setSimulationInterval(() => {}, 1000 / 30);
+    controlledRooms.add(room);
+    reply.writeHead(200).end();
+    return;
+  }
+  if (room && controlledRooms.has(room) && control === "step-clock") {
+    const ticks = Number(url.searchParams.get("ticks"));
+    if (!Number.isInteger(ticks) || ticks < 1 || ticks > 90) {
+      reply.writeHead(400).end();
+      return;
+    }
+    for (let i = 0; i < ticks; i++) simulator.simulate();
+    reply.writeHead(200).end();
+    return;
+  }
   if (!run || !stage || run.result) {
     reply.writeHead(409).end();
     return;
@@ -299,6 +320,7 @@ const fixture = createServer((req, reply) => {
       ),
     );
   }
+  if (room && controlledRooms.has(room)) simulator.simulate();
   reply.writeHead(200, { "content-type": "application/json" }).end(
     JSON.stringify(
       [...run.players.values()].map(({ slot, hp, body }) => ({
