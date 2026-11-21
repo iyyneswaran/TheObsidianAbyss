@@ -66,7 +66,7 @@ The local Compose stack runs PostgreSQL, migrations, Fastify, Colyseus and the N
 
 ## Continuous integration
 
-The release workflow runs on pushes and pull requests to main and supports manual dispatch. It uses read-only repository permissions, disposable database credentials, a native release job and a separate container smoke job. Failed browser traces are reduced to action names and timings before upload. The [release workflow history](https://github.com/iyyneswaran/TheObsidianAbyss/actions/workflows/release.yml) records the hosted outcome for each pushed revision.
+The release workflow runs on pushes and pull requests to main and supports manual dispatch. It uses read-only repository permissions, disposable database credentials, a native release job and a separate container smoke job. Failed browser traces are reduced to action names and timings before upload. Both jobs passed for implementation `5d8e6e5` on November 21, 2026. The Ubuntu release job independently passed 148 Vitest and 27 Chromium tests with zero failures or skips. The container job built fresh images and exercised the browser-to-game path with PostgreSQL 17 Alpine. [GitHub Actions run 44882205236](https://github.com/iyyneswaran/TheObsidianAbyss/actions/runs/44882205236).
 
 ## Security review
 
@@ -109,7 +109,7 @@ The measurements cover desktop Chromium and local networking. Human traversal ti
 
 ## Git
 
-The implementation commit on `main` is titled `feat: implement milestone 7 game polish and release readiness`. Resolve its introducing commit with `git log --diff-filter=A -1 --format=%H -- docs/milestone-7.md` and check the server ref with `git ls-remote origin refs/heads/main`.
+The implementation commit is titled `feat: implement milestone 7 game polish and release readiness`. After the implementation push, the remote `refs/heads/main` and local `HEAD` both resolved to [5d8e6e5256f7b89ee6e87b8f44d39582c99b63ca](https://github.com/iyyneswaran/TheObsidianAbyss/commit/5d8e6e5256f7b89ee6e87b8f44d39582c99b63ca). Resolve the introducing commit with `git log --diff-filter=A -1 --format=%H -- docs/milestone-7.md` and check the current server ref with `git ls-remote origin refs/heads/main`.
 
 ## Operational commands
 
@@ -117,6 +117,12 @@ From the repository root in PowerShell, use the existing private test configurat
 
 ```powershell
 pnpm install --frozen-lockfile
+$clusterPath = (Get-Content .postgres-test/cluster-path -Raw).Trim()
+$pgCtl = '.postgres-test/package/native/bin/pg_ctl.exe'
+& $pgCtl status -D $clusterPath
+if ($LASTEXITCODE -eq 3) {
+  & $pgCtl start -D $clusterPath -l .postgres-test/postgres.log -o '-h 127.0.0.1 -p 55438' -w
+}
 $env:TEST_DATABASE_URL = (Get-Content .postgres-test/suite.env -Raw).Trim()
 pnpm verify:progression
 node tools/verify-containers.mjs
