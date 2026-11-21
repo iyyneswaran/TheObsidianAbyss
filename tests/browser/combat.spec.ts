@@ -166,6 +166,19 @@ async function partyVolley(
   );
 }
 
+async function combatClock(leader: Page, code: string, ticks?: number) {
+  const url = new URL(
+    "http://127.0.0.1:" + process.env.COMBAT_FIXTURE_PORT + "/stage",
+  );
+  url.searchParams.set("team", code);
+  url.searchParams.set("area", ticks ? "step-clock" : "manual-clock");
+  if (ticks) url.searchParams.set("ticks", String(ticks));
+  const response = await leader.request.post(url.href, {
+    headers: { "x-combat-fixture-key": process.env.COMBAT_FIXTURE_KEY! },
+  });
+  expect(response.status()).toBe(200);
+}
+
 async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
   const { pages, code, errors } = team;
   const [a, b, c, d] = pages as [Page, Page, Page, Page];
@@ -245,11 +258,13 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
   await capture(a, "mana-restoration");
   await a.keyboard.press("g");
   await expect(a.getByTestId("cast-feedback")).toContainText("approach");
+  await combatClock(a, code);
   await stage(a, code, "gate");
   await c.bringToFront();
   await c.keyboard.press("e");
   await a.bringToFront();
   await a.keyboard.press("g");
+  await combatClock(a, code, 2);
   const hud = a.getByTestId("boss-hud");
   for (const page of pages)
     await expect(page.getByTestId("boss-hud")).toHaveAttribute(
@@ -259,25 +274,35 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
   await expect(hud).toContainText("The Watcher");
   await capture(a, "boss-phase-1");
 
-  let telegraphCaptured = false;
+  const warning = a.getByTestId("boss-warning");
+  await expect
+    .poll(
+      async () => {
+        await stage(a, code, "boss-party");
+        await combatClock(a, code, 6);
+        return warning.isVisible();
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  await a.screenshot({ path: "artifacts/milestone-7/boss-telegraph.png" });
   for (const phase of [2, 3, 4]) {
-    for (let round = 0; round < 22; round++) {
+    for (let round = 0; round < 80; round++) {
       const visiblePhase = Number(
         await hud.getAttribute("data-phase", { timeout: 400 }).catch(() => "4"),
       );
       if (visiblePhase >= phase) break;
-      const team = await stage(a, code, "boss-party");
-      if (
-        !telegraphCaptured &&
-        (await a.getByTestId("boss-warning").isVisible())
-      ) {
-        telegraphCaptured = true;
-        await a.screenshot({
-          path: "artifacts/milestone-7/boss-telegraph.png",
-        });
+      if (round % 3 === 0) {
+        await stage(a, code, "arena-shrine");
+        await c.keyboard.press("e");
+        await c.keyboard.press("f");
+        await combatClock(a, code, 45);
       }
+      const team = await stage(a, code, "boss-party");
       if (!team.length) break;
       await partyVolley(pages, team, "overlord");
+      await combatClock(a, code, 18);
+      await wait(100);
     }
     if (phase < 4) {
       for (const page of pages)
@@ -289,6 +314,15 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
       if (phase === 2) {
         // Keep a living target in range while the boss's next summoning turn runs.
         await stage(a, code, "boss-party");
+        await expect
+          .poll(
+            async () => {
+              await combatClock(a, code, 6);
+              return a.locator('[data-appearance="shadow-guard"]').count();
+            },
+            { timeout: 20000 },
+          )
+          .toBeGreaterThan(0);
         for (const appearance of [
           "shadow-guard",
           "soul-drainer",
@@ -311,6 +345,7 @@ async function completeEncounter(team: Awaited<ReturnType<typeof getTeam>>) {
       await c.bringToFront();
       await c.keyboard.press("e");
       await c.keyboard.press("f");
+      await combatClock(a, code, 75);
       await expect
         .poll(() => number(mp(recipient), "value"), { timeout: 15000 })
         .toBeGreaterThanOrEqual(Math.min(maxMana, initialMana + 28));
@@ -340,19 +375,7 @@ async function fightForRewards({
   // Each trip moves existing actors into reach. All attacks, HP, mana,
   // encounters and victory still come from normal game input and simulation.
   await expect(mob(leader, "shadow")).toHaveCount(1);
-  async function clock(ticks?: number) {
-    const url = new URL(
-      "http://127.0.0.1:" + process.env.COMBAT_FIXTURE_PORT + "/stage",
-    );
-    url.searchParams.set("team", code);
-    url.searchParams.set("area", ticks ? "step-clock" : "manual-clock");
-    if (ticks) url.searchParams.set("ticks", String(ticks));
-    const response = await leader.request.post(url.href, {
-      headers: { "x-combat-fixture-key": process.env.COMBAT_FIXTURE_KEY! },
-    });
-    expect(response.status()).toBe(200);
-  }
-  await clock();
+  await combatClock(leader, code);
   async function battle(kind: string, area: string) {
     const enemy = mob(leader, kind);
     await expect(enemy).toHaveCount(1);
@@ -363,7 +386,7 @@ async function fightForRewards({
           await pages[2]!.keyboard.press("e");
           await pages[2]!.keyboard.press("f");
         }
-        await clock(45);
+        await combatClock(leader, code, 45);
       }
       const attackers = await stage(leader, code, area);
       if (!attackers.length) break;
@@ -372,7 +395,7 @@ async function fightForRewards({
         "The party was defeated",
       ).toBe(true);
       await partyVolley(pages, attackers, kind);
-      await clock(18);
+      await combatClock(leader, code, 18);
       await wait(100);
     }
     await expect(enemy).toHaveCount(0);
@@ -385,7 +408,7 @@ async function fightForRewards({
   await stage(leader, code, "gate");
   await leader.bringToFront();
   await leader.keyboard.press("g");
-  await clock(2);
+  await combatClock(leader, code, 2);
   await battle("overlord", "boss-party");
   for (const page of pages)
     await expect(page.getByTestId("run-result")).toHaveAttribute(

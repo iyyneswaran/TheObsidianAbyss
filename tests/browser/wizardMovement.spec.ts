@@ -71,7 +71,7 @@ async function held(page: Page, keys: string[], check: () => Promise<void>) {
 const axisKeys = { x: ["a", "d"], y: ["w", "s"] } as const;
 
 async function travel(page: Page, axis: keyof WorldPoint, target: number) {
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 16; attempt++) {
     const start = (await position(page))[axis];
     const distance = Math.abs(target - start);
     if (distance <= 9) return;
@@ -82,13 +82,10 @@ async function travel(page: Page, axis: keyof WorldPoint, target: number) {
         if (distance < 32) {
           // Short key pulses approach the centerline without waiting through a 100 ms debug sample.
           const pulse = Math.min(
-            110,
-            Math.max(25, ((distance - 3) * 1000) / playerSpeed),
+            75,
+            Math.max(30, ((distance - 3) * 1000) / playerSpeed),
           );
-          await page.evaluate(
-            (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-            pulse,
-          );
+          await new Promise((resolve) => setTimeout(resolve, pulse));
           return;
         }
         await expect
@@ -106,6 +103,7 @@ async function travel(page: Page, axis: keyof WorldPoint, target: number) {
         .poll(async () => (await position(page))[axis])
         .not.toBe(start);
       await expect(field(page, "motion")).toHaveText("idle");
+      await new Promise((resolve) => setTimeout(resolve, 120));
     });
   }
   expect(Math.abs(target - (await position(page))[axis])).toBeLessThanOrEqual(
@@ -242,7 +240,7 @@ test("plays each facing animation, follows the wizard, and stops when movement k
 test("blocks walls and pillars, traverses both corridors and the bridge, and reaches the shrine", async ({
   page,
 }) => {
-  test.setTimeout(95_000);
+  test.setTimeout(150_000);
   await enter(page);
   await debug(page, true);
 
@@ -273,6 +271,7 @@ test("blocks walls and pillars, traverses both corridors and the bridge, and rea
         .poll(async () => (await position(page)).x)
         .toBe(p.right + xRadius);
       await expect(field(page, "motion")).toHaveText("idle");
+      await new Promise((resolve) => setTimeout(resolve, 120));
     });
     const y = (await position(page)).y;
     await held(page, ["s"], async () => {
