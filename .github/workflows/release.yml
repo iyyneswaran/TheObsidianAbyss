@@ -29,6 +29,8 @@ jobs:
       PG_TOOL_CONTAINER: postgres:17-alpine
     steps:
       - uses: actions/checkout@v4
+      - name: Start with fresh release results
+        run: find artifacts/milestone-8 -maxdepth 1 -type f -name '*.json' -delete
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
       - run: npm install -g pnpm@12.18.0
@@ -109,6 +111,8 @@ jobs:
       M8_BROWSER: ${{ matrix.browser }}
     steps:
       - uses: actions/checkout@v4
+      - name: Start with fresh browser evidence
+        run: find artifacts/milestone-8 -maxdepth 1 -type f \( -name '*.png' -o -name '*.json' \) -delete
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
       - run: npm install -g pnpm@12.18.0 && pnpm install --frozen-lockfile
@@ -147,6 +151,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Require evidence from this workflow run
+        run: find artifacts/milestone-8 -maxdepth 1 -type f -name '*.json' -delete
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
       - run: npm install -g pnpm@12.18.0
