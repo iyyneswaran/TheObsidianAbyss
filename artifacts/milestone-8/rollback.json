@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "previous": "cc78ac08f10e35b64402436fea7795eb0083a1ba",
+  "postgresImage": "postgres:17-alpine",
+  "previousImages": {
+    "api": "sha256:6880de5e0fb162615a0ccc426bcdf24895ada5b838a13b92dabd9118e5636a29",
+    "game": "sha256:6708d3a65fda648f8b1d7f944d9aac4d9e3e988bb3b9e3beb3e9bbcfbc38aab3",
+    "web": "sha256:9056e9cae86747c0ee869d1c81ff31d03dc65a249dd0dfeac25d0e7e2348a8c9"
+  },
+  "candidateImages": {
+    "api": "sha256:a3c8077672206f725bd839f538acdf7d7842df3a74eaad8714cea8e55d5085c8",
+    "game": "sha256:30d4a1884f0d5bece5636006b6621d1566701a6d2189699043f4e9d26cfb3bb1",
+    "web": "sha256:63282a8a150d1e6c2abe70942cad0d16f40a2fdc5c1abab49320baf67e35b53e"
+  }
+}

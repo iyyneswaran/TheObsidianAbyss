@@ -448,7 +448,7 @@ async function journey(t: Team, full: boolean) {
   }
   expect(t.errors).toEqual([]);
 }
-for (const seats of [1, 2, 4])
+for (const seats of [1, 2, 3, 4])
   test(
     "expedition reaches a real victory with " + seats + " browser seats",
     async ({ browser, baseURL }) => {

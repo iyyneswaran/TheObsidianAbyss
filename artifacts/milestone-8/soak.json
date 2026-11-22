@@ -1,0 +1,654 @@
+{
+  "status": "PASS",
+  "browser": "157.0.8103.79",
+  "elapsedSeconds": 600.9855907000001,
+  "fpsFromMedianInterval": 59.8802395210207,
+  "frameP95Ms": 17.900000000023283,
+  "frameP99Ms": 66.5,
+  "tickHz": 29.037301842251967,
+  "receivedBytes": 249305,
+  "data": [
+    {
+      "elapsedSeconds": 0.03021270000000004,
+      "heapBytes": 89588896,
+      "resources": {
+        "objects": "238",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "6",
+        "inputSequence": "6",
+        "fps": "47.9"
+      }
+    },
+    {
+      "elapsedSeconds": 15.621999700000003,
+      "heapBytes": 107309692,
+      "resources": {
+        "objects": "236",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "1",
+        "score": "forsaken-entrance",
+        "patchHz": "10",
+        "inputSequence": "84",
+        "fps": "45.9"
+      }
+    },
+    {
+      "elapsedSeconds": 30.427164500000003,
+      "heapBytes": 98466020,
+      "resources": {
+        "objects": "235",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "177",
+        "fps": "46.8"
+      }
+    },
+    {
+      "elapsedSeconds": 45.5763508,
+      "heapBytes": 94029296,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "9",
+        "inputSequence": "265",
+        "fps": "56.4"
+      }
+    },
+    {
+      "elapsedSeconds": 60.531541,
+      "heapBytes": 106389220,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "363",
+        "fps": "56.0"
+      }
+    },
+    {
+      "elapsedSeconds": 75.4309656,
+      "heapBytes": 101445944,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "1",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "448",
+        "fps": "58.0"
+      }
+    },
+    {
+      "elapsedSeconds": 90.1541345,
+      "heapBytes": 116520712,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "539",
+        "fps": "58.6"
+      }
+    },
+    {
+      "elapsedSeconds": 105.294533,
+      "heapBytes": 85583492,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "1",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "636",
+        "fps": "53.1"
+      }
+    },
+    {
+      "elapsedSeconds": 120.4865493,
+      "heapBytes": 85956900,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "8",
+        "inputSequence": "725",
+        "fps": "56.3"
+      }
+    },
+    {
+      "elapsedSeconds": 135.4736936,
+      "heapBytes": 95363444,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "9",
+        "inputSequence": "821",
+        "fps": "51.2"
+      }
+    },
+    {
+      "elapsedSeconds": 150.7258109,
+      "heapBytes": 92481448,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "8",
+        "inputSequence": "916",
+        "fps": "46.4"
+      }
+    },
+    {
+      "elapsedSeconds": 165.5864807,
+      "heapBytes": 90270464,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "9",
+        "inputSequence": "1007",
+        "fps": "55.8"
+      }
+    },
+    {
+      "elapsedSeconds": 180.57283550000002,
+      "heapBytes": 99417064,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "10",
+        "inputSequence": "1104",
+        "fps": "53.2"
+      }
+    },
+    {
+      "elapsedSeconds": 195.6002631,
+      "heapBytes": 101615012,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "1194",
+        "fps": "56.8"
+      }
+    },
+    {
+      "elapsedSeconds": 210.331614,
+      "heapBytes": 110217560,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "1",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "1279",
+        "fps": "57.3"
+      }
+    },
+    {
+      "elapsedSeconds": 225.90128710000002,
+      "heapBytes": 97001432,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "1369",
+        "fps": "58.7"
+      }
+    },
+    {
+      "elapsedSeconds": 240.04259550000003,
+      "heapBytes": 107814372,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "1452",
+        "fps": "58.3"
+      }
+    },
+    {
+      "elapsedSeconds": 255.05080840000002,
+      "heapBytes": 96030124,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "14",
+        "inputSequence": "1539",
+        "fps": "55.5"
+      }
+    },
+    {
+      "elapsedSeconds": 270.334826,
+      "heapBytes": 110040916,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "1630",
+        "fps": "53.5"
+      }
+    },
+    {
+      "elapsedSeconds": 285.28101139999995,
+      "heapBytes": 99903416,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "1718",
+        "fps": "56.6"
+      }
+    },
+    {
+      "elapsedSeconds": 300.85591709999994,
+      "heapBytes": 85742380,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "1809",
+        "fps": "57.7"
+      }
+    },
+    {
+      "elapsedSeconds": 315.9500104,
+      "heapBytes": 86262652,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "1905",
+        "fps": "50.6"
+      }
+    },
+    {
+      "elapsedSeconds": 330.0558913,
+      "heapBytes": 99307348,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "1983",
+        "fps": "53.6"
+      }
+    },
+    {
+      "elapsedSeconds": 345.8502509,
+      "heapBytes": 93464944,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2079",
+        "fps": "58.9"
+      }
+    },
+    {
+      "elapsedSeconds": 360.74927979999995,
+      "heapBytes": 87554132,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2167",
+        "fps": "58.8"
+      }
+    },
+    {
+      "elapsedSeconds": 375.35861239999997,
+      "heapBytes": 97863592,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2252",
+        "fps": "57.6"
+      }
+    },
+    {
+      "elapsedSeconds": 390.24640769999996,
+      "heapBytes": 105515436,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2338",
+        "fps": "58.3"
+      }
+    },
+    {
+      "elapsedSeconds": 405.1126003,
+      "heapBytes": 96993472,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "11",
+        "inputSequence": "2425",
+        "fps": "58.7"
+      }
+    },
+    {
+      "elapsedSeconds": 420.0095376,
+      "heapBytes": 87152612,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2513",
+        "fps": "59.1"
+      }
+    },
+    {
+      "elapsedSeconds": 435.223094,
+      "heapBytes": 109659548,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "14",
+        "inputSequence": "2603",
+        "fps": "55.6"
+      }
+    },
+    {
+      "elapsedSeconds": 450.640337,
+      "heapBytes": 94854052,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "2692",
+        "fps": "59.0"
+      }
+    },
+    {
+      "elapsedSeconds": 465.67172229999994,
+      "heapBytes": 86488236,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2779",
+        "fps": "59.2"
+      }
+    },
+    {
+      "elapsedSeconds": 480.2234927,
+      "heapBytes": 109067668,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "2866",
+        "fps": "58.6"
+      }
+    },
+    {
+      "elapsedSeconds": 495.6297565,
+      "heapBytes": 85820836,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "2957",
+        "fps": "59.4"
+      }
+    },
+    {
+      "elapsedSeconds": 510.5095142,
+      "heapBytes": 104466012,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "1",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "3046",
+        "fps": "58.8"
+      }
+    },
+    {
+      "elapsedSeconds": 525.2587561,
+      "heapBytes": 95703492,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "14",
+        "inputSequence": "3157",
+        "fps": "48.8"
+      }
+    },
+    {
+      "elapsedSeconds": 540.6371257000001,
+      "heapBytes": 99779516,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "12",
+        "inputSequence": "3245",
+        "fps": "55.9"
+      }
+    },
+    {
+      "elapsedSeconds": 555.3178707000001,
+      "heapBytes": 94475296,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "3326",
+        "fps": "58.7"
+      }
+    },
+    {
+      "elapsedSeconds": 570.0659350000001,
+      "heapBytes": 107447952,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "14",
+        "inputSequence": "3417",
+        "fps": "58.6"
+      }
+    },
+    {
+      "elapsedSeconds": 585.7855537,
+      "heapBytes": 93704096,
+      "resources": {
+        "objects": "243",
+        "textures": "49",
+        "listeners": "57",
+        "voices": "0",
+        "score": "forsaken-entrance",
+        "patchHz": "13",
+        "inputSequence": "3512",
+        "fps": "59.9"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31551312
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31058532
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31073532
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31071016
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31087288
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31012572
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31061912
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31070256
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31071124
+    },
+    {
+      "nodes": {
+        "documents": 1,
+        "nodes": 221,
+        "jsEventListeners": 203
+      },
+      "heap": 31056848
+    }
+  ]
+}

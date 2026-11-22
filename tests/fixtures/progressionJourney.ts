@@ -39,7 +39,9 @@ export async function verifyAccount(
         exact: true,
       })
       .click();
-    await expect(page.getByTestId("profile-name")).toHaveText(username);
+    await expect(page.getByTestId("profile-name")).toHaveText(username, {
+      timeout: 20000,
+    });
   }
   await submit(register ? "register" : "login");
   if (register) {

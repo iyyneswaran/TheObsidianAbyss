@@ -1,6 +1,7 @@
 pnpm-lock.yaml
 apps/web/public/assets/fx/**
 artifacts/milestone-7/*.json
+artifacts/milestone-8/*.json
 playwright-report/
 test-results/
 .pixelfx-export/

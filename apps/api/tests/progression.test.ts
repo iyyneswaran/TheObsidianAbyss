@@ -6,6 +6,50 @@ import { createApi } from "../src/app.js";
 const database = isolatedTestDatabase();
 const origin = "http://localhost:5173";
 describe.skipIf(!database)("public progression API", () => {
+  it("issues secure cookies only to the configured HTTPS browser origin", async () => {
+    const origin = "https://dungeon.test";
+    const app = createApi(
+      origin,
+      false,
+      randomBytes(32).toString("hex"),
+      database,
+    );
+    try {
+      const guest = await app.inject({
+        method: "POST",
+        url: "/session/guest",
+        headers: { origin },
+      });
+      expect(guest.statusCode).toBe(204);
+      expect(guest.headers["set-cookie"]).toMatch(
+        /; HttpOnly; SameSite=Lax; Secure$/,
+      );
+      const registration = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        headers: { origin },
+        payload: {
+          username: "tls_" + randomUUID().slice(0, 8),
+          password: randomUUID(),
+        },
+      });
+      expect(registration.statusCode).toBe(201);
+      expect(registration.headers["set-cookie"]).toMatch(
+        /; HttpOnly; SameSite=Lax; Max-Age=\d+; Secure$/,
+      );
+      expect(registration.headers["cache-control"]).toBe("no-store");
+      const other = await app.inject({
+        method: "POST",
+        url: "/session/guest",
+        headers: { origin: "http://dungeon.test" },
+      });
+      expect(other.statusCode).toBe(403);
+      expect(other.headers["set-cookie"]).toBeUndefined();
+    } finally {
+      await app.close();
+    }
+  });
+
   it("validates sessions, authenticated ownership, CSRF, strict payloads and privileged route isolation", async () => {
     const app = createApi(
       origin,

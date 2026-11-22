@@ -38,3 +38,5 @@ See [Architecture](docs/ARCHITECTURE.md), [Tech stack](docs/TECH_STACK.md), [Mil
 ## Sound, controls and releases
 
 Open **Settings** to change the audio mix, key bindings, HUD size, motion and contrast. During a run the menu opens over the game. The release gate runs against disposable PostgreSQL and real Chromium clients. See [deployment instructions](docs/DEPLOYMENT.md) and the [Milestone 7 report](docs/milestone-7.md).
+
+The candidate checks, browser matrix and operations runbook are linked from the [Milestone 8 report](docs/milestone-8.md).

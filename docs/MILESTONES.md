@@ -10,5 +10,6 @@
 | 5. Progression and Quest Board       | Persistent accounts, wallets, Store, Vault, alternate abilities and quests                              | Complete                         |
 | 6. Dungeon Expansion                 | Five zones, eighteen primary rooms, shared objectives, timed hazards, secrets and expedition minimap    | [Complete](milestone-6.md)       |
 | 7. Game polish and release readiness | Synthesized audio, accessible controls, rendering and simulation profiling, production packaging and CI | [Release report](milestone-7.md) |
+| 8. Final QA and launch readiness     | Browser compatibility, network and load verification, recovery drills, and release artifacts            | [Release report](milestone-8.md) |
 
 See [the Milestone 5 verification report](milestone-5.md) for acceptance evidence and release details.

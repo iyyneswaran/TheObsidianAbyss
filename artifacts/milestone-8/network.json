@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "engine": "157.0.8103.79",
+  "samples": [
+    {
+      "rtt": 50,
+      "minJitterMs": -8,
+      "maxJitterMs": 8,
+      "remoteMs": 814.5602999999974,
+      "visibleMs": 812.678399999997,
+      "chunks": 10,
+      "bytes": 218,
+      "patchHz": 6
+    },
+    {
+      "rtt": 100,
+      "minJitterMs": -8,
+      "maxJitterMs": 8,
+      "remoteMs": 511.3009999999995,
+      "visibleMs": 512.1574999999975,
+      "chunks": 14,
+      "bytes": 572,
+      "patchHz": 7
+    },
+    {
+      "rtt": 200,
+      "minJitterMs": -8,
+      "maxJitterMs": 8,
+      "remoteMs": 471.8826000000008,
+      "visibleMs": 473.64140000000043,
+      "chunks": 10,
+      "bytes": 184,
+      "patchHz": 9
+    },
+    {
+      "rtt": 300,
+      "minJitterMs": -8,
+      "maxJitterMs": 8,
+      "remoteMs": 930.0406000000003,
+      "visibleMs": 932.5905999999995,
+      "chunks": 28,
+      "bytes": 598,
+      "patchHz": 10
+    }
+  ],
+  "reconnectMs": 418.8803999999982
+}

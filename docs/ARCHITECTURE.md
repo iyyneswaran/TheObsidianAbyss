@@ -54,3 +54,7 @@ The expedition packs five editable Tiled sections into one shared world-coordina
 ## Presentation and timing
 
 The Web Audio mixer belongs to the browser tab. Dungeon scenes select the score and emit positional cues from server combat events. Preferences live in local storage. A capped accumulator advances the authoritative simulation in fixed steps after delayed callbacks. Rendering reuses occluders within the camera view and samples debug data only when the overlay is collecting it. See [production topology](DEPLOYMENT.md).
+
+## Release verification boundaries
+
+The release verifier uses a fresh PostgreSQL schema and local service endpoints. The browser compatibility, TCP impairment and soak tools exercise the actual WebSocket connection from Chromium, Firefox and WebKit. The load runner provisions synthetic guests with its own ephemeral signing key and starts isolated service listeners. Production serves the pinned and patched Colyseus SDK for the browser. The local staging controller and browser automation remain outside the runtime images.

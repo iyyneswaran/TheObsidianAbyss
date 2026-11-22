@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "started": "2026-11-22T08:12:52.508Z",
+  "postgres": "18.7",
+  "archiveBytes": 94230,
+  "sha256": "6b9d1169788405cb29866bd21e1cc2d40b7dbb8b8d905ec0ea348491d944abce",
+  "walletErrors": 0,
+  "rows": {
+    "Wallet": 72,
+    "RunResult": 30,
+    "QuestClaim": 3,
+    "OwnedAbility": 6,
+    "PlayerAccount": 21,
+    "QuestProgress": 259,
+    "StorePurchase": 6,
+    "RunParticipant": 69,
+    "EquippedLoadout": 2,
+    "WalletTransaction": 111
+  }
+}

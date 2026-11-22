@@ -26,6 +26,8 @@ game.example.org {
 
 The production frontend derives its API and WSS URLs from the browser origin. Leave the Vite endpoint overrides unset for the packaged proxy. The gateway permits small request bodies, revalidates stable asset paths, and caches content-hashed JS and CSS. Authentication cookies use HttpOnly, SameSite=Lax and Secure on HTTPS. Team entry and socket admission verify the configured origin and signed identity.
 
+Keep service ports private. The packaged gateway rejects dotfiles and disables camera, microphone, and geolocation permissions. Validate cookie delivery and WebSocket upgrade on the exact HTTPS host before opening traffic. See [operations](OPERATIONS.md) for database recovery and image rollback.
+
 ## Health and diagnostics
 
 Fastify serves `/health` for liveness and `/health/database` for database readiness. Colyseus serves internal `/health` and `/ready`. The latter checks PostgreSQL through the configured progression client. The public Fastify probe is `/api/health/database`. Inspect `docker compose -f compose.production.yaml logs api game migrate` locally for startup, room lifecycle, timing and settlement failures. Room identifiers support correlation. Protect logs and volumes according to your hosting environment.

@@ -4,5 +4,11 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["*.config.ts", "apps/*/tests", "packages/*/tests", "tests"]
+  "include": [
+    "*.config.ts",
+    "apps/*/tests",
+    "apps/*/tools",
+    "packages/*/tests",
+    "tests"
+  ]
 }

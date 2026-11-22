@@ -11,3 +11,7 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: false
   prisma: false
+patchedDependencies:
+  "@colyseus/sdk@0.17.43": patches/@colyseus__sdk@0.17.43.patch
+# Filtered API, game and migration deploys omit the browser SDK.
+allowUnusedPatches: true

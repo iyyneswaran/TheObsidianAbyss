@@ -25,6 +25,8 @@ jobs:
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 4s --health-retries 12
     env:
       TEST_DATABASE_URL: postgresql://obsidian:temporary_ci_password@127.0.0.1:5432/obsidian_test
+      M8_RESTORE: "1"
+      PG_TOOL_CONTAINER: postgres:17-alpine
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,6 +36,23 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Validate source, database, gameplay and production services
         run: pnpm verify:progression
+      - name: Exercise bounded multi-room workloads
+        run: M8_VERIFY=load pnpm verify:progression
+      - name: Audit runtime dependencies
+        run: pnpm audit --prod --audit-level high --registry=https://registry.npmjs.org/
+      - name: Build same-origin release bundles
+        run: pnpm build
+        env:
+          VITE_API_URL: ""
+          VITE_GAME_SERVER_URL: ""
+      - name: Record source identity and bundle checksums
+        run: pnpm release:manifest
+      - name: Package the same-origin frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-web
+          path: apps/web/dist/
+          retention-days: 14
       - name: Export redacted browser action timings
         if: failure()
         run: python3 tools/ci-evidence.py
@@ -45,6 +64,7 @@ jobs:
           path: |
             artifacts/milestone-7/*.png
             artifacts/milestone-7/*.json
+            artifacts/milestone-8/*.json
             test-results/**/*.png
             test-results/action-timings.json
           retention-days: 7
@@ -57,4 +77,93 @@ jobs:
         with: { node-version: "24" }
       - run: npm install -g pnpm@12.18.0 && pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      - run: node tools/verify-containers.mjs
+      - run: M8_CONTAINER_EVIDENCE=1 node tools/verify-containers.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: containers
+          path: artifacts/milestone-8/containers.json
+          retention-days: 7
+  compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { browser: chrome, install: chrome }
+          - { browser: edge, install: msedge }
+          - { browser: firefox, install: firefox }
+          - { browser: webkit, install: webkit }
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: obsidian_test
+          POSTGRES_USER: obsidian
+          POSTGRES_PASSWORD: temporary_ci_password
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 4s --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgresql://obsidian:temporary_ci_password@127.0.0.1:5432/obsidian_test
+      M8_VERIFY: compatibility
+      M8_BROWSER: ${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm install -g pnpm@12.18.0 && pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps ${{ matrix.install }}
+      - run: pnpm verify:progression
+      - if: matrix.browser == 'chrome'
+        run: M8_VERIFY=network pnpm verify:progression
+      - if: matrix.browser == 'chrome'
+        run: M8_VERIFY=soak pnpm verify:progression
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compatibility-${{ matrix.browser }}
+          path: |
+            artifacts/milestone-8/*.png
+            artifacts/milestone-8/*.json
+            test-results/milestone-8/**/*.png
+          retention-days: 7
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: node tools/verify-rollback.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rollback
+          path: artifacts/milestone-8/rollback.json
+          retention-days: 7
+  decision:
+    needs: [release, containers, compatibility, rollback]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm install -g pnpm@12.18.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*"
+          path: ${{ runner.temp }}/release-evidence
+      - name: Collect release evidence
+        run: |
+          find "$RUNNER_TEMP/release-evidence" -type f \( -name 'release-validation.json' -o -name 'backup-restore.json' -o -name 'compatibility-*.json' -o -name 'network.json' -o -name 'load.json' -o -name 'soak.json' -o -name 'containers.json' -o -name 'rollback.json' -o -name 'release-manifest.json' \) | while IFS= read -r file; do
+            mkdir -p artifacts/milestone-8
+            cp "$file" artifacts/milestone-8/
+          done
+      - run: pnpm release:gates
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-decision
+          path: artifacts/milestone-8/*.json
+          retention-days: 30

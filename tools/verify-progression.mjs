@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -26,6 +27,7 @@ const env = {
   WEB_PORT: web,
   GAME_PORT: game,
   API_PORT: api,
+  M8_PROXY_PORT: process.env.M8_PROXY_PORT ?? String(Number(game) + 1002),
   VITE_API_URL: "http://localhost:" + api,
   VITE_GAME_SERVER_URL: "ws://localhost:" + game,
   WEB_ORIGIN: "http://localhost:" + web,
@@ -55,7 +57,11 @@ async function run(...args) {
     );
   });
 }
-await run("db:generate");
+if (
+  !env.M8_VERIFY ||
+  !existsSync("packages/progression/generated/client/index.js")
+)
+  await run("db:generate");
 // Release the database process between commands so Windows can regenerate Prisma's DLL.
 async function schemaCommand(sql) {
   const controlUrl = new URL(source.href);
@@ -89,7 +95,29 @@ let created = false;
 try {
   await schemaCommand('CREATE SCHEMA "' + schema + '"');
   created = true;
-  if (env.M7_BROWSER_FILTER) {
+  if (
+    ["compatibility", "load", "network", "soak"].includes(env.M8_VERIFY ?? "")
+  ) {
+    await run("db:migrate");
+    await run("db:seed");
+    if (env.M8_VERIFY !== "load")
+      await run(
+        "exec",
+        "playwright",
+        "test",
+        "--config",
+        "playwright.compatibility.config.ts",
+      );
+    else
+      await run(
+        "--filter",
+        "@obsidian/game-server",
+        "exec",
+        "tsx",
+        "--conditions=development",
+        "tools/verify-load.ts",
+      );
+  } else if (env.M7_BROWSER_FILTER) {
     await run("db:migrate");
     await run("db:seed");
     await run("exec", "playwright", "test", "--grep", env.M7_BROWSER_FILTER);
@@ -141,6 +169,35 @@ try {
       "--grep",
       "1 browser seats",
     );
+    if (env.M8_RESTORE === "1") {
+      await run("exec", "node", "tools/verify-restore.mjs");
+      const evidence = "artifacts/milestone-8";
+      await mkdir(evidence, { recursive: true });
+      await writeFile(
+        join(evidence, "release-validation.json"),
+        JSON.stringify(
+          {
+            status: "PASS",
+            at: new Date().toISOString(),
+            checks: [
+              "format",
+              "typecheck",
+              "lint",
+              "build",
+              "migrations",
+              "vitest",
+              "browser",
+              "production-restart",
+              "four-seat-production-expedition",
+              "silent-solo-production-expedition",
+              "restore",
+            ],
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+    }
   }
 } finally {
   try {

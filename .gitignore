@@ -13,6 +13,8 @@ test-results/
 /artifacts/milestone-2/
 /artifacts/milestone-3/
 /artifacts/milestone-4/
+/artifacts/milestone-8/release-manifest.json
+/artifacts/milestone-8/release-gates.json
 /.guest-key
 /packages/progression/generated/
 /.progression-outbox/

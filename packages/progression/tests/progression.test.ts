@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterAll, describe, expect, it } from "vitest";
@@ -73,6 +73,27 @@ describe.skipIf(!url)(
       } finally {
         await first.close();
         await unavailable.$disconnect();
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
+
+    it("quarantines unreadable jobs and drains valid jobs behind them", async () => {
+      const id = await guest();
+      const directory = await mkdtemp(join(tmpdir(), "obsidian-quarantine-"));
+      const corrupt = join(directory, `0000000000000-${randomUUID()}.json`);
+      const invalid = join(directory, `0000000000001-${randomUUID()}.json`);
+      await writeFile(corrupt, "{");
+      await writeFile(invalid, JSON.stringify({ type: "settlement" }));
+      const outbox = new ProgressionOutbox(db(), directory);
+      try {
+        outbox.enqueue({ type: "settlement", value: result([id], "VICTORY") });
+        await outbox.flush();
+        await outbox.flush();
+        expect(await wallet(db(), id)).toEqual({ coins: 240, gems: 3 });
+        expect(await readFile(corrupt + ".quarantine", "utf8")).toBe("{");
+        expect(await readdir(directory)).toHaveLength(2);
+      } finally {
+        await outbox.close();
         await rm(directory, { recursive: true, force: true });
       }
     });

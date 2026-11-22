@@ -9,6 +9,8 @@
   },
   "scripts": {
     "verify:progression": "node tools/verify-progression.mjs",
+    "release:manifest": "node tools/release-manifest.mjs",
+    "release:gates": "node tools/release-gates.mjs",
     "db:generate": "pnpm --filter @obsidian/progression db:generate",
     "db:validate": "pnpm --filter @obsidian/progression db:validate",
     "db:migrate": "pnpm --filter @obsidian/progression db:migrate",

@@ -8,6 +8,7 @@ import {
   unlink,
 } from "node:fs/promises";
 import { resolve } from "node:path";
+import { outboxRecord } from "./outboxRecord.js";
 import type { PrismaClient } from "../generated/client/index.js";
 import {
   recordEvents,
@@ -109,10 +110,30 @@ export class ProgressionOutbox {
     );
     for (const file of files.sort().slice(0, 32)) {
       const path = resolve(this.directory, file);
-      const job = JSON.parse(await readFile(path, "utf8")) as ProgressJob;
+      const payload = await readFile(path, "utf8");
+      const decoded = outboxRecord.safeParse(parseRecord(payload));
+      if (!decoded.success) {
+        await rename(path, path + ".quarantine");
+        console.error(
+          JSON.stringify({
+            service: "game",
+            event: "progression.outbox.quarantined",
+          }),
+        );
+        continue;
+      }
+      const job = decoded.data;
       if (job.type === "settlement") await settleRun(this.db, job.value);
       else await recordEvents(this.db, job.events);
       await unlink(path);
     }
+  }
+}
+
+function parseRecord(payload: string): unknown {
+  try {
+    return JSON.parse(payload) as unknown;
+  } catch {
+    return undefined;
   }
 }

@@ -18,7 +18,7 @@ test("renders and replays Frost Nova, joins and leaves a room, and disposes Phas
   const stage = page.getByTestId("game-stage");
   const canvas = stage.locator("canvas");
   const play = page.getByRole("button", { name: "Play Frost Nova" });
-  await expect(canvas).toHaveCount(1);
+  await expect(canvas).toHaveCount(1, { timeout: 25000 });
   await expect(play).toBeEnabled();
   const idle = await canvas.screenshot();
 

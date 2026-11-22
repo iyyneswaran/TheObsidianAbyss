@@ -1,0 +1,93 @@
+diff --git a/build/transport/WebSocketTransport.cjs b/build/transport/WebSocketTransport.cjs
+index c6b18fba09012b93d0195fa7d14156337974bb37..b4942198a78386b375a44d47f3bc8db57275b3b6 100644
+--- a/build/transport/WebSocketTransport.cjs
++++ b/build/transport/WebSocketTransport.cjs
+@@ -25,14 +25,20 @@ class WebSocketTransport {
+      * @param headers custom headers to send with the connection (only supported in Node.js. Web Browsers do not allow setting custom headers)
+      */
+     connect(url, headers) {
+-        try {
+-            // Node or Bun environments (supports custom headers)
+-            this.ws = new WebSocket(url, { headers, protocols: this.protocols });
+-        }
+-        catch (e) {
+-            // browser environment (custom headers not supported)
+-            this.ws = new WebSocket(url, this.protocols);
++        if (typeof window !== "undefined" && typeof document !== "undefined") {
++          // Browser constructors accept subprotocols, not Node options.
++          this.ws = new WebSocket(url, this.protocols);
++        } else {
++          try {
++              // Node or Bun environments (supports custom headers)
++              this.ws = new WebSocket(url, { headers, protocols: this.protocols });
++          }
++          catch (e) {
++              // browser environment (custom headers not supported)
++              this.ws = new WebSocket(url, this.protocols);
++          }
+         }
++
+         this.ws.binaryType = 'arraybuffer';
+         this.ws.onopen = (event) => { var _a, _b; return (_b = (_a = this.events).onopen) === null || _b === void 0 ? void 0 : _b.call(_a, event); };
+         this.ws.onmessage = (event) => { var _a, _b; return (_b = (_a = this.events).onmessage) === null || _b === void 0 ? void 0 : _b.call(_a, event); };
+diff --git a/build/transport/WebSocketTransport.mjs b/build/transport/WebSocketTransport.mjs
+index 1716bcd4f2c44f89b3b692e7fabe322d55261c98..119cd334731ce5188b573ac5654006686d2306d9 100644
+--- a/build/transport/WebSocketTransport.mjs
++++ b/build/transport/WebSocketTransport.mjs
+@@ -26,14 +26,20 @@ class WebSocketTransport {
+      * @param headers custom headers to send with the connection (only supported in Node.js. Web Browsers do not allow setting custom headers)
+      */
+     connect(url, headers) {
+-        try {
+-            // Node or Bun environments (supports custom headers)
+-            this.ws = new WebSocket(url, { headers, protocols: this.protocols });
+-        }
+-        catch (e) {
+-            // browser environment (custom headers not supported)
+-            this.ws = new WebSocket(url, this.protocols);
++        if (typeof window !== "undefined" && typeof document !== "undefined") {
++          // Browser constructors accept subprotocols, not Node options.
++          this.ws = new WebSocket(url, this.protocols);
++        } else {
++          try {
++              // Node or Bun environments (supports custom headers)
++              this.ws = new WebSocket(url, { headers, protocols: this.protocols });
++          }
++          catch (e) {
++              // browser environment (custom headers not supported)
++              this.ws = new WebSocket(url, this.protocols);
++          }
+         }
++
+         this.ws.binaryType = 'arraybuffer';
+         this.ws.onopen = (event) => this.events.onopen?.(event);
+         this.ws.onmessage = (event) => this.events.onmessage?.(event);
+diff --git a/src/transport/WebSocketTransport.ts b/src/transport/WebSocketTransport.ts
+index 83a4782d78e86667142be24eb59a139f7b95a33b..85aff0f49179b500e7dd03d1ceca50d5ea135db7 100644
+--- a/src/transport/WebSocketTransport.ts
++++ b/src/transport/WebSocketTransport.ts
+@@ -27,13 +27,18 @@ export class WebSocketTransport implements ITransport {
+      * @param headers custom headers to send with the connection (only supported in Node.js. Web Browsers do not allow setting custom headers)
+      */
+     public connect(url: string, headers?: any): void {
+-        try {
+-            // Node or Bun environments (supports custom headers)
+-            this.ws = new WebSocket(url, { headers, protocols: this.protocols });
++        if (typeof window !== "undefined" && typeof document !== "undefined") {
++          // Browser constructors accept subprotocols, not Node options.
++          this.ws = new WebSocket(url, this.protocols);
++        } else {
++          try {
++              // Node or Bun environments (supports custom headers)
++              this.ws = new WebSocket(url, { headers, protocols: this.protocols });
+ 
+-        } catch (e) {
+-            // browser environment (custom headers not supported)
+-            this.ws = new WebSocket(url, this.protocols);
++          } catch (e) {
++              // browser environment (custom headers not supported)
++              this.ws = new WebSocket(url, this.protocols);
++          }
+         }
+ 
+         this.ws.binaryType = 'arraybuffer';

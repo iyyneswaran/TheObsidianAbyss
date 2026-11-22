@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@colyseus/sdk@0.17.43': 10aa4462a8b1ecffd88a10416cb226410219c68e64db1e53f685f5d42b40859f
+
 importers:
 
   .:
@@ -253,7 +256,7 @@ importers:
     devDependencies:
       '@colyseus/sdk':
         specifier: 0.17.43
-        version: 0.17.43(@colyseus/core@0.17.56)(typescript@6.0.3)(zod@4.6.7)
+        version: 0.17.43(patch_hash=10aa4462a8b1ecffd88a10416cb226410219c68e64db1e53f685f5d42b40859f)(@colyseus/core@0.17.56)(typescript@6.0.3)(zod@4.6.7)
 
   apps/web:
     dependencies:
@@ -262,7 +265,7 @@ importers:
         version: 4.0.31(typescript@6.0.3)
       '@colyseus/sdk':
         specifier: 0.17.43
-        version: 0.17.43(@colyseus/core@0.17.56)(typescript@6.0.3)(zod@4.6.7)
+        version: 0.17.43(patch_hash=10aa4462a8b1ecffd88a10416cb226410219c68e64db1e53f685f5d42b40859f)(@colyseus/core@0.17.56)(typescript@6.0.3)(zod@4.6.7)
       '@obsidian/game-assets':
         specifier: workspace:*
         version: link:../../packages/game-assets
@@ -2519,7 +2522,7 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@colyseus/sdk@0.17.43(@colyseus/core@0.17.56)(typescript@6.0.3)(zod@4.6.7)':
+  '@colyseus/sdk@0.17.43(patch_hash=10aa4462a8b1ecffd88a10416cb226410219c68e64db1e53f685f5d42b40859f)(@colyseus/core@0.17.56)(typescript@6.0.3)(zod@4.6.7)':
     dependencies:
       '@colyseus/better-call': 1.3.3(zod@4.6.7)
       '@colyseus/msgpackr': 1.11.3
@@ -2527,8 +2530,6 @@ snapshots:
       '@colyseus/shared-types': 0.17.6
       tslib: 2.9.1
       ws: 8.23.0
-    optionalDependencies:
-      '@colyseus/core': 0.17.56(@colyseus/better-call@1.3.3(zod@4.6.7))(@colyseus/schema@4.0.31(typescript@6.0.3))(@colyseus/ws-transport@0.17.13)(express@5.1.0)(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - typescript

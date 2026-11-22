@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "at": "2026-11-22T07:54:35.440Z",
+  "browser": "159.0.8154.6",
+  "postgresImage": "postgres:17-alpine",
+  "imageIds": {
+    "migrate": "sha256:f5f07b7da652071cf3e3d0c511fff061d71b803b6faa0288c295cbf0b77239c2",
+    "api": "sha256:c800172d92d08ec0e7b36a163803b6f5f0bc97d1c4ee2521719de803642c4161",
+    "game": "sha256:210166669d478d421a771c1677f7c571d353a37c5719a0a1964612decdd5d43d",
+    "web": "sha256:19e41a1afbc638d658073bddbd3fa4d0caa1c0d52c25fa24dc82fa04df86fec4"
+  },
+  "checks": [
+    "history route",
+    "database readiness",
+    "guest identity",
+    "private room",
+    "WebSocket upgrade",
+    "authoritative cast"
+  ]
+}

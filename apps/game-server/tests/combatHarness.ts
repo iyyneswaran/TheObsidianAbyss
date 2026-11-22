@@ -171,6 +171,7 @@ const fixture = createServer((req, reply) => {
             id: p.id,
             hp: p.hp,
             mp: p.mp,
+            protected: p.protected,
             x: p.body.x,
             y: p.body.y,
           })),
@@ -237,16 +238,23 @@ const fixture = createServer((req, reply) => {
           }
         } else if (target) {
           // Keep a clear firing lane while allowing the live AI to attack and telegraph normally.
-          const choices = Array.from({ length: 32 }, (_, i) => {
-            const a =
-              ((i + p.slot * 5 + Math.floor(run.time / 380)) * Math.PI) / 16;
-            return {
-              x: target.body.x + Math.cos(a) * 183,
-              y: target.body.y + Math.sin(a) * 183,
-            };
-          }).filter(
-            (q) => safePoint(run.map, q) && clearSight(run.map, q, target.body),
-          );
+          const choices = [183, 156, 128, 96, 64]
+            .flatMap((radius) =>
+              Array.from({ length: 32 }, (_, index) => {
+                const angle =
+                  ((index + p.slot * 5 + Math.floor(run.time / 380)) *
+                    Math.PI) /
+                  16;
+                return {
+                  x: target.body.x + Math.cos(angle) * radius,
+                  y: target.body.y + Math.sin(angle) * radius,
+                };
+              }),
+            )
+            .filter(
+              (q) =>
+                safePoint(run.map, q) && clearSight(run.map, q, target.body),
+            );
           point =
             choices.find((q) =>
               [...run.areas.values()].every(

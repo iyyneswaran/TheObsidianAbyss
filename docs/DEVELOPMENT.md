@@ -78,3 +78,7 @@ New private teams default to the five-zone expedition. Select **Classic dungeon*
 ## Release validation
 
 Set TEST_DATABASE_URL to a disposable test-named database and run pnpm verify:progression. The runner creates a unique schema and removes it in a finally block. For a focused four-client comparison set M7_BENCH to before or after and invoke the same runner. Clear the variable for the complete release gate. Built-service tests use the existing loopback-only staging controller. See [container verification](DEPLOYMENT.md).
+
+## Candidate QA
+
+Use `M8_VERIFY` to run compatibility, TCP impairment, load, or soak checks against the dedicated test database. Set `M8_RESTORE=1` with the full verifier to exercise backup recovery from browser-generated progression. The [Milestone 8 report](milestone-8.md) lists the PowerShell commands and evidence.
